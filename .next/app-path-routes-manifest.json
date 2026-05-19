@@ -1,0 +1,22 @@
+{
+  "/(onboarading_pages)/forgot-password/page": "/forgot-password",
+  "/(onboarading_pages)/login/page": "/login",
+  "/(onboarading_pages)/reset-password/page": "/reset-password",
+  "/(onboarading_pages)/signup/page": "/signup",
+  "/(onboarading_pages)/verify-email/page": "/verify-email",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/auth/login/route": "/api/auth/login",
+  "/api/auth/logout/route": "/api/auth/logout",
+  "/api/auth/refresh/route": "/api/auth/refresh",
+  "/api/auth/register/route": "/api/auth/register",
+  "/api/proxy/[...endpoint]/route": "/api/proxy/[...endpoint]",
+  "/favicon.ico/route": "/favicon.ico",
+  "/installer/dashboard/page": "/installer/dashboard",
+  "/installer/jobs/[id]/page": "/installer/jobs/[id]",
+  "/installer/settings/bills-and-payments/page": "/installer/settings/bills-and-payments",
+  "/installer/settings/page": "/installer/settings",
+  "/installer/settings/profile/page": "/installer/settings/profile",
+  "/installer/settings/projects/page": "/installer/settings/projects",
+  "/page": "/"
+}

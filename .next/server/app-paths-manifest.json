@@ -1,0 +1,22 @@
+{
+  "/(onboarading_pages)/forgot-password/page": "app/(onboarading_pages)/forgot-password/page.js",
+  "/(onboarading_pages)/login/page": "app/(onboarading_pages)/login/page.js",
+  "/(onboarading_pages)/reset-password/page": "app/(onboarading_pages)/reset-password/page.js",
+  "/(onboarading_pages)/signup/page": "app/(onboarading_pages)/signup/page.js",
+  "/(onboarading_pages)/verify-email/page": "app/(onboarading_pages)/verify-email/page.js",
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/api/auth/logout/route": "app/api/auth/logout/route.js",
+  "/api/auth/refresh/route": "app/api/auth/refresh/route.js",
+  "/api/auth/register/route": "app/api/auth/register/route.js",
+  "/api/proxy/[...endpoint]/route": "app/api/proxy/[...endpoint]/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/installer/dashboard/page": "app/installer/dashboard/page.js",
+  "/installer/jobs/[id]/page": "app/installer/jobs/[id]/page.js",
+  "/installer/settings/bills-and-payments/page": "app/installer/settings/bills-and-payments/page.js",
+  "/installer/settings/page": "app/installer/settings/page.js",
+  "/installer/settings/profile/page": "app/installer/settings/profile/page.js",
+  "/installer/settings/projects/page": "app/installer/settings/projects/page.js",
+  "/page": "app/page.js"
+}

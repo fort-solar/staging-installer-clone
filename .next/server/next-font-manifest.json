@@ -1,0 +1,59 @@
+{
+  "app": {
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/(onboarading_pages)/forgot-password/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/(onboarading_pages)/login/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/(onboarading_pages)/reset-password/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/(onboarading_pages)/signup/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/(onboarading_pages)/verify-email/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/_not-found/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/installer/dashboard/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/installer/jobs/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/installer/settings/bills-and-payments/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/installer/settings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/installer/settings/profile/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/installer/settings/projects/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ],
+    "[project]/Documents/01_work/Fortsolar/fortsolar-installer-webapp/app/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+      "static/media/797e433ab948586e-s.p.479bea2b.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}
