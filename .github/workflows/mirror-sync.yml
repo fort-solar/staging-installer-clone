@@ -15,14 +15,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false # 💡 CRITICAL: Stops the org token from blocking your personal token
 
       - name: Mirror Push to Personal Repository
         run: |
-          # 1. Store the target destination URL cleanly
-          TARGET_URL="https://github.com/fort-solar/fortsolar-installer-webapp-frontend-clone.git"
+          TARGET_URL="https://${{ secrets.PERSONAL_REPO_TOKEN }}@github.com/fort-solar/fortsolar-installer-webapp-frontend-clone.git"
           
-          # 2. Inject authentication safely via extraheader instead of the URL string
-          git config --global http.https://github.com/.extraheader "Authorization: Basic $(echo -n "x-access-token:${{ secrets.PERSONAL_REPO_TOKEN }}" | base64)"
-          
-          # 3. Execute the mirror push
+          # Push everything cleanly using only your personal access token
           git push --prune --force "$TARGET_URL" "+refs/remotes/origin/*:refs/heads/*" "+refs/tags/*:refs/tags/*"
