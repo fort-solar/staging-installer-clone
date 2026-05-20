@@ -1,0 +1,24 @@
+name: Mirror to Personal Repo
+
+on:
+  push:
+    branches:
+      - '**' # Matches every branch push
+    tags:
+      - '**' # Matches every tag push
+
+jobs:
+  git-mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Ensures all branches and full history are fetched
+
+      - name: Mirror Push to Personal Repository
+        run: |
+          TARGET_URL="https://x-access-token:${{ secrets.PERSONAL_REPO_TOKEN }}@github.com/fort-solar/fortsolar-installer-webapp-frontend-clone.git"
+          
+          # Push all branches, tags, and force synchronization to keep histories matching perfectly
+          git push --prune --force "$TARGET_URL" "+refs/remotes/origin/*:refs/heads/*" "+refs/tags/*:refs/tags/*"
