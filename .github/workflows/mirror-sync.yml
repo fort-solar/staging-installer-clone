@@ -10,16 +10,19 @@ on:
 jobs:
   git-mirror:
     runs-on: ubuntu-latest
+    # 💡 CRITICAL: Only run this job if it is executing inside the core organization repository
+    if: github.repository == 'fortsolar/fortsolar-installer-webapp-frontend'
+    
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false # 💡 CRITICAL: Stops the org token from blocking your personal token
+          persist-credentials: false
 
       - name: Mirror Push to Personal Repository
         run: |
           TARGET_URL="https://${{ secrets.PERSONAL_REPO_TOKEN }}@github.com/fort-solar/fortsolar-installer-webapp-frontend-clone.git"
           
-          # Push everything cleanly using only your personal access token
+          # Push everything cleanly
           git push --prune --force "$TARGET_URL" "+refs/remotes/origin/*:refs/heads/*" "+refs/tags/*:refs/tags/*"
