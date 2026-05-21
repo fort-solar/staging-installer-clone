@@ -12,7 +12,7 @@ type ForgotPasswordValues = {
   email: string;
 };
 
-const FORGOT_PASSWORD_ENDPOINT = "/auth/forgot-password";
+const FORGOT_PASSWORD_ENDPOINT = "/api/v1/auth/forgot-password";
 
 const ForgotPasswordForm = () => {
   const [status, setStatus] = useState<{ tone: "success" | "error"; message: string } | null>(null);
@@ -32,7 +32,10 @@ const ForgotPasswordForm = () => {
     setStatus(null);
     const { error } = await submitFormClient({
       endpoint: FORGOT_PASSWORD_ENDPOINT,
-      values,
+      values: {
+        ...values,
+        portal: "installer",
+      },
     });
     if (error) {
       setStatus({ tone: "error", message: error });

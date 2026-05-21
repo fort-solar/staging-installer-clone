@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractApiMessage } from "@/lib/api/errors";
-import { readNonEmptyEnv } from "@/lib/env";
+import { env } from "@/lib/env";
 import {
   createSessionSnapshotFromProfile,
   setAuthCookies,
@@ -16,12 +16,6 @@ import type {
   SessionSnapshot,
 } from "@/types/api.types";
 
-export const FORTSOLAR_API_BASE_URL = readNonEmptyEnv(
-  process.env.FORTSOLAR_API_BASE_URL,
-  process.env.NEXT_PUBLIC_FORTSOLAR_API_BASE_URL,
-  process.env.NEXT_PUBLIC_BASE_URL,
-);
-
 type ServerPayload =
   | LoginApiResponse
   | RefreshTokenApiResponse
@@ -31,11 +25,7 @@ type ServerPayload =
   | null;
 
 function buildApiUrl(path: string) {
-  if (!FORTSOLAR_API_BASE_URL) {
-    throw new Error("FORTSOLAR_API_BASE_URL is not configured.");
-  }
-
-  return new URL(path, FORTSOLAR_API_BASE_URL).toString();
+  return new URL(path, env.apiBaseUrl).toString();
 }
 
 export function buildErrorResponse(message: string, status = 400, error?: string) {

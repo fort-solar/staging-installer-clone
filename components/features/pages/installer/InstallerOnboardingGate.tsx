@@ -1,18 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, UploadCloud, X } from "lucide-react";
-import {
-  queuePendingInstallerSubmission,
-  sessionSnapshotToMockSession,
-} from "@/lib/localAuth";
-import {
-  completeInstallerOnboarding,
-  defaultInstallerOnboardingState,
-  getInstallerOnboardingState,
-  saveInstallerOnboardingState,
-  type InstallerOnboardingData,
-} from "@/lib/installerStorage";
+import React, { useEffect, useState } from "react";
+import { ArrowRight, CheckCircle2, Loader2, UploadCloud, X } from "lucide-react";
 import { LogoFull } from "@/components/features/icons/Logo";
 import {
   Select,
@@ -21,11 +10,15 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Field, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGeneralStore } from "@/store/GeneralStore";
+import {
+  getInstallerOnboarding,
+  submitInstallerOnboarding,
+} from "@/lib/api/installers";
 
 const LOCATIONS = [
   "Port Harcourt",
@@ -44,49 +37,181 @@ const SPECIALIZATIONS = [
   "Energy Audits",
 ];
 
+type OnboardingFormState = {
+  currentStep: 1 | 2 | 3;
+  completed: boolean;
+  profile: {
+    name: string;
+    primaryLocation: string;
+    yearsOfExperience: string;
+    specializations: string[];
+    notifyOnNewJobs: boolean;
+  };
+  verification: {
+    idFileName: string;
+    certificateFileName: string;
+    idUploadId: string;
+    certificateUploadId: string;
+  };
+  serviceAreas: string[];
+};
+
 const StepDots = ({ step }: { step: 1 | 2 | 3 }) => (
   <div className="mb-6 flex items-center gap-1">
     {[1, 2, 3].map((dot) => (
       <span
         key={dot}
-        className={`h-3 w-3 rounded-full ${dot <= step ? "bg-[#25B229]" : "bg-[#D8DCE2]"
-          }`}
+        className={`h-3 w-3 rounded-full ${dot <= step ? "bg-[#25B229]" : "bg-[#D8DCE2]"}`}
       />
     ))}
   </div>
 );
 
+function toStringValue(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function toBooleanValue(value: unknown, fallback = true) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function toStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function buildDefaultState(fullName: string): OnboardingFormState {
+  return {
+    currentStep: 1,
+    completed: false,
+    profile: {
+      name: fullName,
+      primaryLocation: "",
+      yearsOfExperience: "",
+      specializations: [],
+      notifyOnNewJobs: true,
+    },
+    verification: {
+      idFileName: "",
+      certificateFileName: "",
+      idUploadId: "",
+      certificateUploadId: "",
+    },
+    serviceAreas: [],
+  };
+}
+
+function toOnboardingState(fullName: string, payload: Awaited<ReturnType<typeof getInstallerOnboarding>>["data"]) {
+  const fallback = buildDefaultState(fullName);
+
+  return {
+    currentStep: payload.completed
+      ? 3
+      : payload.serviceAreas.length > 0
+        ? 3
+        : Object.keys(payload.verification ?? {}).length > 0
+          ? 2
+          : 1,
+    completed: payload.completed,
+    profile: {
+      name: toStringValue(payload.profile?.name, fallback.profile.name),
+      primaryLocation: toStringValue(payload.profile?.primaryLocation),
+      yearsOfExperience: toStringValue(payload.profile?.yearsOfExperience),
+      specializations: toStringArray(payload.profile?.specializations),
+      notifyOnNewJobs: toBooleanValue(payload.profile?.notifyOnNewJobs, true),
+    },
+    verification: {
+      idFileName: toStringValue(payload.verification?.idFileName),
+      certificateFileName: toStringValue(payload.verification?.certificateFileName),
+      idUploadId: toStringValue(payload.verification?.idUploadId),
+      certificateUploadId: toStringValue(payload.verification?.certificateUploadId),
+    },
+    serviceAreas: toStringArray(payload.serviceAreas),
+  } satisfies OnboardingFormState;
+}
+
 const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) => {
-  const { session: authSession } = useAuth();
-  const markInstallerSyncPending = useGeneralStore((state) => state.markInstallerSyncPending);
-  const session = useMemo(() => sessionSnapshotToMockSession(authSession), [authSession]);
-  const [state, setState] = useState<InstallerOnboardingData | null>(() =>
-    session && session.role === "installer"
-      ? getInstallerOnboardingState(session)
-      : null
-  );
+  const { session } = useAuth();
+  const markInstallerSyncComplete = useGeneralStore((state) => state.markInstallerSyncComplete);
+  const [state, setState] = useState<OnboardingFormState | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!session || !state || state.completed) return;
-    saveInstallerOnboardingState(session, state);
-  }, [session, state]);
-  const shouldShow = !!state && !state.completed;
+    if (!session || session.user.role !== "installer") {
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const payload = await getInstallerOnboarding();
+
+        if (cancelled) {
+          return;
+        }
+
+        setState(toOnboardingState(session.user.fullName, payload.data));
+        setMessage(null);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setState(buildDefaultState(session.user.fullName));
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load your onboarding state. You can still continue.",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const shouldShow = state ? !state.completed : false;
 
   useEffect(() => {
-    if (!shouldShow) return;
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
+    if (!shouldShow) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
     };
   }, [shouldShow]);
 
-  if (!state || !session || session.role !== "installer") {
+  if (!session || session.user.role !== "installer") {
     return <>{children}</>;
+  }
+
+  if (isLoading || !state) {
+    return (
+      <>
+        {children}
+        <div className="fixed inset-0 z-80 grid place-items-center bg-white text-sm text-[#667085]">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading your onboarding state...
+          </div>
+        </div>
+      </>
+    );
   }
 
   const canProceedStep1 =
@@ -98,31 +223,65 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
     state.verification.certificateFileName.trim().length > 0;
   const canSubmitStep3 = state.serviceAreas.length > 0;
 
-  const updateState = (updater: (prev: InstallerOnboardingData) => InstallerOnboardingData) => {
-    setState((prev) => {
-      if (!prev) return prev;
-      return updater(prev);
-    });
+  const updateState = (updater: (prev: OnboardingFormState) => OnboardingFormState) => {
+    setState((previous) => (previous ? updater(previous) : previous));
   };
 
   const toggleServiceArea = (value: string) => {
-    updateState((prev) => {
-      const exists = prev.serviceAreas.includes(value);
+    updateState((previous) => {
+      const exists = previous.serviceAreas.includes(value);
+
       return {
-        ...prev,
+        ...previous,
         serviceAreas: exists
-          ? prev.serviceAreas.filter((item) => item !== value)
-          : [...prev.serviceAreas, value],
+          ? previous.serviceAreas.filter((item) => item !== value)
+          : [...previous.serviceAreas, value],
       };
     });
   };
 
+  async function handleSubmit() {
+    const currentState = state;
+
+    if (!currentState) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    try {
+      await submitInstallerOnboarding({
+        profile: currentState.profile,
+        verification: {
+          idFileName: currentState.verification.idFileName,
+          certificateFileName: currentState.verification.certificateFileName,
+          idUploadId:
+            currentState.verification.idUploadId.trim() ||
+            currentState.verification.idFileName.trim(),
+          certificateUploadId:
+            currentState.verification.certificateUploadId.trim() ||
+            currentState.verification.certificateFileName.trim(),
+        },
+        serviceAreas: currentState.serviceAreas,
+      });
+      setState((previous) => (previous ? { ...previous, completed: true, currentStep: 3 } : previous));
+      markInstallerSyncComplete("onboarding");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to submit your onboarding right now.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <>
       {children}
-      {shouldShow && (
+      {shouldShow ? (
         <div className="fixed inset-0 z-80 h-screen bg-white">
-          <div className="mx-auto flex flex-col lg:flex-row gap-10 lg:gap-0 h-screen w-full  overflow-hidden px-6 py-12 lg:px-14">
+          <div className="mx-auto flex h-screen w-full flex-col gap-10 overflow-hidden px-6 py-12 lg:flex-row lg:gap-0 lg:px-14">
             <div className="w-72 lg:sticky lg:top-12 lg:block lg:self-start">
               <LogoFull className="h-10 w-auto" />
               <p className="mt-2 text-sm font-medium tracking-[0.25em] text-[#4B5563]">
@@ -132,48 +291,50 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
 
             <div className="flex flex-1 overflow-y-auto bg-white lg:px-20">
               <div className="flex min-h-full w-full items-start justify-start py-2 lg:py-4">
-                <div className="w-full lg:max-w-xl rounded-[38px] border border-[#D7E2E8] bg-white px-6 py-8 lg:px-12 lg:py-12">
+                <div className="w-full rounded-[38px] border border-[#D7E2E8] bg-white px-6 py-8 lg:max-w-xl lg:px-12 lg:py-12">
                   <StepDots step={state.currentStep} />
 
-                  {state.currentStep === 1 && (
+                  {state.currentStep === 1 ? (
                     <>
-                      <h2 className="text-xl lg:text-3xl font-semibold text-[#0B0F17]">
+                      <h2 className="text-xl font-semibold text-[#0B0F17] lg:text-3xl">
                         Finish Setting Up Your Profile
                       </h2>
                       <p className="mt-2 text-base text-[#556070]">
-                        This information helps us connect you with relevant installation jobs near you.
+                        This information helps us connect you with relevant installation jobs near
+                        you.
                       </p>
 
                       <div className="mt-10 space-y-6">
                         <Field className="space-y-4 gap-0">
-                          <FieldLabel className="text-base font-medium text-[#3E3F43] mb-3">Name</FieldLabel>
+                          <FieldLabel className="mb-3 text-base font-medium text-[#3E3F43]">
+                            Name
+                          </FieldLabel>
                           <Input
                             value={state.profile.name}
                             onChange={(event) =>
-                              updateState((prev) => ({
-                                ...prev,
-                                profile: { ...prev.profile, name: event.target.value },
+                              updateState((previous) => ({
+                                ...previous,
+                                profile: { ...previous.profile, name: event.target.value },
                               }))
                             }
-                            className="h-10 w-full text-base rounded-[24px]  border-none bg-[#B8C0CC33] px-6  outline-none text-[#3B3B3BE5]"
+                            className="h-10 w-full rounded-[24px] border-none bg-[#B8C0CC33] px-6 text-base text-[#3B3B3BE5] outline-none"
                           />
                         </Field>
 
                         <Field className="space-y-2 gap-0">
-                          <FieldLabel className="text-base font-medium text-[#3E3F43] mb-3">Primary Service Location</FieldLabel>
+                          <FieldLabel className="mb-3 text-base font-medium text-[#3E3F43]">
+                            Primary Service Location
+                          </FieldLabel>
                           <Select
                             value={state.profile.primaryLocation}
                             onValueChange={(value) =>
-                              updateState((prev) => ({
-                                ...prev,
-                                profile: {
-                                  ...prev.profile,
-                                  primaryLocation: value,
-                                },
+                              updateState((previous) => ({
+                                ...previous,
+                                profile: { ...previous.profile, primaryLocation: value },
                               }))
                             }
                           >
-                            <SelectTrigger className="h-10 w-full text-base rounded-[24px] border-none bg-[#B8C0CC33] px-6 outline-none text-[#3B3B3BE5]">
+                            <SelectTrigger className="h-10 w-full rounded-[24px] border-none bg-[#B8C0CC33] px-6 text-base text-[#3B3B3BE5] outline-none">
                               <SelectValue placeholder="eg. Port Harcourt" />
                             </SelectTrigger>
                             <SelectContent className="z-120">
@@ -189,27 +350,31 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                         </Field>
 
                         <Field className="space-y-2 gap-0">
-                          <FieldLabel className="text-base font-medium text-[#3E3F43] mb-3">Years of Experience</FieldLabel>
+                          <FieldLabel className="mb-3 text-base font-medium text-[#3E3F43]">
+                            Years of Experience
+                          </FieldLabel>
                           <Input
                             type="number"
                             min={0}
                             value={state.profile.yearsOfExperience}
                             onChange={(event) =>
-                              updateState((prev) => ({
-                                ...prev,
+                              updateState((previous) => ({
+                                ...previous,
                                 profile: {
-                                  ...prev.profile,
+                                  ...previous.profile,
                                   yearsOfExperience: event.target.value,
                                 },
                               }))
                             }
-                            className="h-10 w-full text-base rounded-[24px]  border-none bg-[#B8C0CC33] px-6  outline-none text-[#3B3B3BE5]"
+                            className="h-10 w-full rounded-[24px] border-none bg-[#B8C0CC33] px-6 text-base text-[#3B3B3BE5] outline-none"
                           />
                         </Field>
 
                         <div className="space-y-2">
-                          <label className="text-base font-medium text-[#3E3F43] mb-3">Installation Specializations</label>
-                          <div className="rounded-[24px] mt-4 border-none  bg-[#B8C0CC33] p-4">
+                          <label className="mb-3 text-base font-medium text-[#3E3F43]">
+                            Installation Specializations
+                          </label>
+                          <div className="mt-4 rounded-[24px] bg-[#B8C0CC33] p-4">
                             <div className="mb-3 flex flex-wrap gap-3">
                               {state.profile.specializations.map((spec) => (
                                 <span
@@ -220,12 +385,12 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      updateState((prev) => ({
-                                        ...prev,
+                                      updateState((previous) => ({
+                                        ...previous,
                                         profile: {
-                                          ...prev.profile,
-                                          specializations: prev.profile.specializations.filter(
-                                            (item) => item !== spec
+                                          ...previous.profile,
+                                          specializations: previous.profile.specializations.filter(
+                                            (item) => item !== spec,
                                           ),
                                         },
                                       }))
@@ -238,17 +403,20 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {SPECIALIZATIONS.filter(
-                                (item) => !state.profile.specializations.includes(item)
+                                (item) => !state.profile.specializations.includes(item),
                               ).map((item) => (
                                 <button
                                   key={item}
                                   type="button"
                                   onClick={() =>
-                                    updateState((prev) => ({
-                                      ...prev,
+                                    updateState((previous) => ({
+                                      ...previous,
                                       profile: {
-                                        ...prev.profile,
-                                        specializations: [...prev.profile.specializations, item],
+                                        ...previous.profile,
+                                        specializations: [
+                                          ...previous.profile.specializations,
+                                          item,
+                                        ],
                                       },
                                     }))
                                   }
@@ -265,12 +433,12 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                           <input
                             type="checkbox"
                             className="h-5 w-5 rounded-md border-[#E2E8F0] text-[#16A34A] focus:ring-[#16A34A]/30"
-                             checked={state.profile.notifyOnNewJobs}
+                            checked={state.profile.notifyOnNewJobs}
                             onChange={(event) =>
-                              updateState((prev) => ({
-                                ...prev,
+                              updateState((previous) => ({
+                                ...previous,
                                 profile: {
-                                  ...prev.profile,
+                                  ...previous.profile,
                                   notifyOnNewJobs: event.target.checked,
                                 },
                               }))
@@ -280,15 +448,15 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                         </label>
                       </div>
                     </>
-                  )}
+                  ) : null}
 
-                  {state.currentStep === 2 && (
+                  {state.currentStep === 2 ? (
                     <>
-                      <h2 className="text-xl lg:text-3xl font-semibold text-[#0B0F17]">
-                         Verification &amp; Certification
+                      <h2 className="text-xl font-semibold text-[#0B0F17] lg:text-3xl">
+                        Verification &amp; Certification
                       </h2>
                       <p className="mt-2 text-base text-[#556070]">
-                       Please upload the required documents to verify your identity and expertise. Your data is kept private and secure.
+                        Please upload the required documents to verify your identity and expertise.
                       </p>
 
                       <div className="mt-10 space-y-6">
@@ -296,85 +464,114 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                           <label className="text-base font-medium text-[#3E3F43]">
                             Valid ID Upload (National ID/Driver&apos;s License/Voter&apos;s Card)
                           </label>
-                          <label className="flex h-14 mt-4 cursor-pointer items-center rounded-[24px] border border-[#B8C0CC33] bg-white">
+                          <label className="mt-4 flex h-14 cursor-pointer items-center rounded-[24px] border border-[#B8C0CC33] bg-white">
                             <span className="flex h-full items-center gap-2 border-r border-[#DADDE2] bg-[#FAFAFA] px-6 text-sm font-medium text-[#444C58]">
                               <UploadCloud className="h-6 w-6" /> Upload File
                             </span>
-                            <span className="px-4 text-xs lg:ext-sm text-[#9BA2AE]">
+                            <span className="px-4 text-xs text-[#9BA2AE] lg:text-sm">
                               {state.verification.idFileName || "No file chosen"}
                             </span>
                             <input
                               type="file"
                               className="hidden"
                               onChange={(event) =>
-                                updateState((prev) => ({
-                                  ...prev,
+                                updateState((previous) => ({
+                                  ...previous,
                                   verification: {
-                                    ...prev.verification,
+                                    ...previous.verification,
                                     idFileName: event.target.files?.[0]?.name ?? "",
                                   },
                                 }))
                               }
                             />
                           </label>
-                          {state.verification.idFileName && (
-                            <p className="flex items-center justify-between text-xs lg:ext-sm text-[#5A646F]">
+                          <Input
+                            value={state.verification.idUploadId}
+                            onChange={(event) =>
+                              updateState((previous) => ({
+                                ...previous,
+                                verification: {
+                                  ...previous.verification,
+                                  idUploadId: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Optional upload reference / upload ID"
+                            className="h-11 rounded-[24px] border-[#D0D5DD]"
+                          />
+                          {state.verification.idFileName ? (
+                            <p className="flex items-center justify-between text-xs text-[#5A646F] lg:text-sm">
                               <span>{state.verification.idFileName}</span>
-                              <CheckCircle2 className="h-3 w-3 lg:h-5 lg:w-5 text-[#25B229]" />
+                              <CheckCircle2 className="h-3 w-3 text-[#25B229] lg:h-5 lg:w-5" />
                             </p>
-                          )}
+                          ) : null}
                         </div>
 
                         <div className="space-y-2">
                           <label className="text-base font-medium text-[#3E3F43]">
                             Relevant Certification (Solar Training, Electrical License)
                           </label>
-                          <label className="flex h-14 mt-4 cursor-pointer items-center rounded-[24px] border border-[#B8C0CC33] bg-white">
+                          <label className="mt-4 flex h-14 cursor-pointer items-center rounded-[24px] border border-[#B8C0CC33] bg-white">
                             <span className="flex h-full items-center gap-2 border-r border-[#DADDE2] bg-[#FAFAFA] px-6 text-sm font-medium text-[#444C58]">
                               <UploadCloud className="h-6 w-6" /> Upload File
                             </span>
-                            <span className="px-4 text-xs lg:ext-sm text-[#9BA2AE]">
+                            <span className="px-4 text-xs text-[#9BA2AE] lg:text-sm">
                               {state.verification.certificateFileName || "No file chosen"}
                             </span>
                             <input
                               type="file"
                               className="hidden"
                               onChange={(event) =>
-                                updateState((prev) => ({
-                                  ...prev,
+                                updateState((previous) => ({
+                                  ...previous,
                                   verification: {
-                                    ...prev.verification,
-                                    certificateFileName:
-                                      event.target.files?.[0]?.name ?? "",
+                                    ...previous.verification,
+                                    certificateFileName: event.target.files?.[0]?.name ?? "",
                                   },
                                 }))
                               }
                             />
                           </label>
-                           {state.verification.certificateFileName && (
-                            <p className="flex items-center justify-between text-xs lg:ext-sm text-[#5A646F]">
+                          <Input
+                            value={state.verification.certificateUploadId}
+                            onChange={(event) =>
+                              updateState((previous) => ({
+                                ...previous,
+                                verification: {
+                                  ...previous.verification,
+                                  certificateUploadId: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Optional upload reference / upload ID"
+                            className="h-11 rounded-[24px] border-[#D0D5DD]"
+                          />
+                          {state.verification.certificateFileName ? (
+                            <p className="flex items-center justify-between text-xs text-[#5A646F] lg:text-sm">
                               <span>{state.verification.certificateFileName}</span>
-                              <CheckCircle2 className="h-3 w-3 lg:h-5 lg:w-5 text-[#25B229]" />
+                              <CheckCircle2 className="h-3 w-3 text-[#25B229] lg:h-5 lg:w-5" />
                             </p>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </>
-                  )}
+                  ) : null}
 
-                  {state.currentStep === 3 && (
+                  {state.currentStep === 3 ? (
                     <>
-                     <h2 className="text-xl lg:text-3xl font-semibold text-[#0B0F17]">
-                         Choose Your Service Areas
+                      <h2 className="text-xl font-semibold text-[#0B0F17] lg:text-3xl">
+                        Choose Your Service Areas
                       </h2>
                       <p className="mt-2 text-base text-[#556070]">
                         Select the cities you are willing to accept installation jobs in.
                       </p>
 
                       <div className="mt-10 space-y-2">
-                        <label className="text-base font-medium text-[#3E3F43]">Select Service Areas</label>
-                        <div className="rounded-[24px] mt-4 border border-[#DADDE2] p-4">
-                          <div className="min-h-22 rounded-4xl border border-[#DADDE2] bg-[#B8C0CC33]  p-3">
+                        <label className="text-base font-medium text-[#3E3F43]">
+                          Select Service Areas
+                        </label>
+                        <div className="mt-4 rounded-[24px] border border-[#DADDE2] p-4">
+                          <div className="min-h-22 rounded-4xl border border-[#DADDE2] bg-[#B8C0CC33] p-3">
                             <div className="flex flex-wrap gap-3">
                               {state.serviceAreas.map((area) => (
                                 <span
@@ -387,41 +584,43 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                                   </button>
                                 </span>
                               ))}
-                              {state.serviceAreas.length === 0 && (
-                                <span className="text-sm text-[#B1B7C1]">No area selected yet</span>
-                              )}
+                              {state.serviceAreas.length === 0 ? (
+                                <span className="text-sm text-[#B1B7C1]">
+                                  No area selected yet
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2">
-                            {LOCATIONS.filter((area) => !state.serviceAreas.includes(area)).map(
-                              (area) => (
-                                <button
-                                  key={area}
-                                  type="button"
-                                  onClick={() => toggleServiceArea(area)}
-                                  className="rounded-xl bg-[#5A646F] px-4 py-2 text-xs text-white"
-                                >
-                                  + {area}
-                                </button>
-                              )
-                            )}
+                            {LOCATIONS.filter((area) => !state.serviceAreas.includes(area)).map((area) => (
+                              <button
+                                key={area}
+                                type="button"
+                                onClick={() => toggleServiceArea(area)}
+                                className="rounded-xl bg-[#5A646F] px-4 py-2 text-xs text-white"
+                              >
+                                + {area}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </div>
                     </>
-                  )}
+                  ) : null}
+
+                  {message ? <p className="mt-6 text-sm text-[#D64545]">{message}</p> : null}
 
                   <div className="mt-14 flex items-center justify-between">
                     {state.currentStep > 1 ? (
                       <button
                         type="button"
                         onClick={() =>
-                          updateState((prev) => ({
-                            ...prev,
-                            currentStep: (prev.currentStep - 1) as 1 | 2 | 3,
+                          updateState((previous) => ({
+                            ...previous,
+                            currentStep: (previous.currentStep - 1) as 1 | 2 | 3,
                           }))
                         }
-                        className="h-12 rounded-xl border-2 border-[#ADB0B5] cursor-pointer px-5 lg:px-8 text-lg font-medium"
+                        className="h-12 cursor-pointer rounded-xl border-2 border-[#ADB0B5] px-5 text-lg font-medium lg:px-8"
                       >
                         Previous
                       </button>
@@ -433,46 +632,28 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                       type="button"
                       onClick={() => {
                         if (state.currentStep === 1 && canProceedStep1) {
-                          updateState((prev) => ({ ...prev, currentStep: 2 }));
+                          updateState((previous) => ({ ...previous, currentStep: 2 }));
                           return;
                         }
+
                         if (state.currentStep === 2 && canProceedStep2) {
-                          updateState((prev) => ({ ...prev, currentStep: 3 }));
+                          updateState((previous) => ({ ...previous, currentStep: 3 }));
                           return;
                         }
+
                         if (state.currentStep === 3 && canSubmitStep3) {
-                          const latest = getInstallerOnboardingState(session);
-                          markInstallerSyncPending("onboarding");
-                          queuePendingInstallerSubmission(
-                            "installer_onboarding_submit",
-                            "/api/v1/installers/onboarding",
-                            "POST",
-                            {
-                              profile: state.profile,
-                              verification: state.verification,
-                              serviceAreas: state.serviceAreas,
-                            },
-                            "Installer onboarding endpoint has not been supplied yet. The completed onboarding payload was queued for later API hookup.",
-                          );
-                          completeInstallerOnboarding(session, {
-                            ...latest,
-                            ...state,
-                            completed: true,
-                          });
-                          setState((prev) =>
-                            prev
-                              ? { ...prev, completed: true, currentStep: 3 }
-                              : defaultInstallerOnboardingState(session)
-                          );
+                          void handleSubmit();
                         }
                       }}
                       disabled={
+                        isSubmitting ||
                         (state.currentStep === 1 && !canProceedStep1) ||
                         (state.currentStep === 2 && !canProceedStep2) ||
                         (state.currentStep === 3 && !canSubmitStep3)
                       }
-                      className="flex h-12 items-center gap-3 rounded-xl bg-[#12A312] cursor-pointer px-5 lg:px-8 text-lg font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-12 items-center gap-3 rounded-xl bg-[#12A312] px-5 text-lg font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 lg:px-8"
                     >
+                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       {state.currentStep === 3 ? "Submit" : "Next"}
                       <ArrowRight className="h-4 w-4" />
                     </button>
@@ -482,7 +663,7 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 };

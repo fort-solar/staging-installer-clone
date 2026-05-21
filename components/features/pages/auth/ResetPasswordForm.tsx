@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { AuthInput } from "@/components/features/pages/auth/AuthInput";
 import { AuthButton } from "@/components/features/pages/auth/AuthButton";
 import { AuthMessage } from "@/components/features/pages/auth/AuthMessage";
@@ -14,7 +14,7 @@ type ResetPasswordValues = {
   confirmPassword: string;
 };
 
-const RESET_PASSWORD_ENDPOINT = "/auth/reset-password";
+const RESET_PASSWORD_ENDPOINT = "/api/v1/auth/reset-password";
 
 const ResetPasswordForm = () => {
   const searchParams = useSearchParams();
@@ -25,7 +25,7 @@ const ResetPasswordForm = () => {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm<ResetPasswordValues>({
     defaultValues: {
@@ -67,8 +67,8 @@ const ResetPasswordForm = () => {
   };
 
   const isTokenMissing = !token;
-  const passwordValue = watch("password");
-  const confirmValue = watch("confirmPassword");
+  const passwordValue = useWatch({ control, name: "password" });
+  const confirmValue = useWatch({ control, name: "confirmPassword" });
   const passwordsMatch = !passwordValue || passwordValue === confirmValue;
 
   return (

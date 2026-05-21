@@ -12,13 +12,18 @@ import { PrintIcon } from "@/components/features/icons/PrintIcon";
 import { SoonIcon } from "@/components/features/icons/SoonIcon";
 import { ImageIcon } from "@/components/features/icons/ImageIcon";
 import { PDFIcon } from "@/components/features/icons/PDFIcon";
-import {
-  queuePendingInstallerSubmission,
-  sessionSnapshotToMockSession,
-  updateCurrentUserProfile,
-} from "@/lib/localAuth";
+import { updateCurrentUserProfile } from "@/lib/localAuth";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGeneralStore } from "@/store/GeneralStore";
+import {
+  createInstallerPaymentMethod,
+  deleteInstallerPaymentMethod,
+  getInstallerPaymentMethods,
+  getInstallerPayouts,
+  getInstallerProfile,
+  getInstallerProjects,
+  updateInstallerProfile,
+} from "@/lib/api/installers";
 
 type InstallerProfileState = {
   firstName: string;
@@ -96,66 +101,6 @@ const DEFAULT_SKILLS = ["Battery Configuration", "Residential", "Domestic", "Com
 
 const EXPERIENCE_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert", "Master"];
 
-const PROJECTS: InstallerProject[] = [
-  {
-    id: "project-1",
-    title: "3kVA Solar/ Inverter AA1 Installation",
-    location: "Ajip, Port Harcourt.",
-    summary:
-      "Lorem ipsum dolor sit amet consectetur. Mattis et ut condimentum ac. Nunc in tristique tempor mi auctor etiam maecenas iaculis. Faucibus in ornare arcu turpis.",
-    budget: "₦71.24M",
-    startMeta: "To Start Nov 20th, 2025",
-    status: "Scheduled",
-    tags: ["New Installation", "Standard", "6-8 Hrs"],
-  },
-  {
-    id: "project-2",
-    title: "3kVA Solar/ Inverter AA1 Installation",
-    location: "Ajip, Port Harcourt.",
-    summary:
-      "Lorem ipsum dolor sit amet consectetur. Mattis et ut condimentum ac. Nunc in tristique tempor mi auctor etiam maecenas iaculis. Faucibus in ornare arcu turpis.",
-    budget: "₦71.24M",
-    startMeta: "Job Started",
-    status: "In Progress",
-    tags: ["New Installation", "Standard", "6-8 Hrs"],
-  },
-  {
-    id: "project-3",
-    title: "3kVA Solar/ Inverter AA1 Installation",
-    location: "Ajip, Port Harcourt.",
-    summary:
-      "Lorem ipsum dolor sit amet consectetur. Mattis et ut condimentum ac. Nunc in tristique tempor mi auctor etiam maecenas iaculis. Faucibus in ornare arcu turpis.",
-    budget: "₦71.24M",
-    startMeta: "Job Verified",
-    status: "Completed",
-    tags: ["New Installation", "Standard", "6-8 Hrs"],
-  },
-];
-
-const PAYOUT_HISTORY: PayoutHistoryRow[] = [
-  {
-    id: "pay-1",
-    referenceId: "FS-TRX-004512",
-    amount: "₦120,000",
-    date: "15 Oct 2025",
-    status: "Pending",
-  },
-  {
-    id: "pay-2",
-    referenceId: "FS-TRX-004513",
-    amount: "₦120,000",
-    date: "15 Oct 2025",
-    status: "Approved",
-  },
-  {
-    id: "pay-3",
-    referenceId: "FS-TRX-004514",
-    amount: "₦120,000",
-    date: "15 Oct 2025",
-    status: "Declined",
-  },
-];
-
 const statusTone: Record<ProjectStatus, string> = {
   Scheduled: "bg-[#E9F6E9] text-[#149414]",
   "In Progress": "bg-[#FFF5E5] text-[#F59E0B]",
@@ -184,57 +129,39 @@ const InfoItem = ({
   </div>
 );
 
-const SETTINGS_STORAGE_KEY_PREFIX = "fortsolar_installer_settings_";
+function splitFullName(value: string) {
+  const trimmed = value.trim();
+  const segments = trimmed.split(/\s+/).filter(Boolean);
 
-function readStoredInstallerSettings(
-  key: string,
-  defaultProfile: InstallerProfileState,
-  defaultPaymentMethods: PaymentMethod[],
-) {
-  if (typeof window === "undefined") {
-    return {
-      profile: defaultProfile,
-      paymentMethods: defaultPaymentMethods,
-    };
+  return {
+    firstName: segments[0] ?? "",
+    lastName: segments.slice(1).join(" "),
+  };
+}
+
+function formatPayoutDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
 
-  const raw = window.localStorage.getItem(key);
-
-  if (!raw) {
-    return {
-      profile: defaultProfile,
-      paymentMethods: defaultPaymentMethods,
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as {
-      profile?: InstallerProfileState;
-      paymentMethods?: PaymentMethod[];
-    };
-
-    return {
-      profile: parsed.profile ?? defaultProfile,
-      paymentMethods: parsed.paymentMethods ?? defaultPaymentMethods,
-    };
-  } catch {
-    return {
-      profile: defaultProfile,
-      paymentMethods: defaultPaymentMethods,
-    };
-  }
+  return date.toLocaleDateString();
 }
 
 const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
-  const { session: authSession } = useAuth();
-  const markInstallerSyncPending = useGeneralStore((state) => state.markInstallerSyncPending);
-  const session = useMemo(() => sessionSnapshotToMockSession(authSession), [authSession]);
+  const { session } = useAuth();
+  const markInstallerSyncComplete = useGeneralStore((state) => state.markInstallerSyncComplete);
   const [activeTab, setActiveTab] = useState<TabKeyInstaller>(page ? page : "profile");
   const [skillInput, setSkillInput] = useState("");
   const [isSkillEditorOpen, setIsSkillEditorOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isPayoutFilterOpen, setIsPayoutFilterOpen] = useState(false);
   const [payoutFilter, setPayoutFilter] = useState<PayoutFilter>("All");
+  const [projects, setProjects] = useState<InstallerProject[]>([]);
+  const [payoutHistory, setPayoutHistory] = useState<PayoutHistoryRow[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isPaymentSaving, setIsPaymentSaving] = useState(false);
 
   const [paymentForm, setPaymentForm] = useState({
     accountName: "",
@@ -242,70 +169,120 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
     bankName: "",
   });
 
-  const sessionFirstName = session?.fullName?.split(" ")[0] ?? "Pedro";
-  const sessionLastName = session?.fullName?.split(" ").slice(1).join(" ") || "Ajo";
-  const sessionEmail = session?.email ?? "sarahjohnson@gmail.com";
+  const sessionFullName = session?.user.fullName ?? "Installer User";
+  const sessionNames = splitFullName(sessionFullName);
+  const sessionEmail = session?.user.email ?? "";
+  const sessionPhone = session?.user.phone ?? "";
+  const sessionAddress = session?.user.address ?? "";
 
   const defaultProfile = useMemo<InstallerProfileState>(() => ({
-    firstName: sessionFirstName,
-    lastName: sessionLastName,
+    firstName: sessionNames.firstName || "Installer",
+    lastName: sessionNames.lastName,
     email: sessionEmail,
-    phone: "+1 000 567 3456",
-    address: "No 21 Chindah Street Ajip Adageorge, Port Harcourt Nigeria",
-    location: "Port Harcourt",
-    experienceLevel: "Expert",
-    additionalInfo: "Experienced in hybrid inverter setup, diagnostics, and post-install support.",
+    phone: sessionPhone,
+    address: sessionAddress,
+    location: "",
+    experienceLevel: "Intermediate",
+    additionalInfo: "",
     skills: DEFAULT_SKILLS,
-    completedInstallations: 15,
-    rating: 5.5,
-    tier: "Tier II",
-  }), [sessionEmail, sessionFirstName, sessionLastName]);
-
-  const defaultPaymentMethods = useMemo<PaymentMethod[]>(() => [
-    {
-      id: "method-1",
-      accountName: "Giadom C Werey",
-      accountNumber: "5089594569",
-      bankName: "FCMB",
-    },
-  ], []);
-
-  const settingsStorageKey = useMemo(
-    () => `${SETTINGS_STORAGE_KEY_PREFIX}${session?.userId ?? "guest"}`,
-    [session?.userId],
-  );
+    completedInstallations: 0,
+    rating: 0,
+    tier: "Tier I",
+  }), [sessionAddress, sessionEmail, sessionNames.firstName, sessionNames.lastName, sessionPhone]);
 
   const [profile, setProfile] = useState<InstallerProfileState>(defaultProfile);
-
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(defaultPaymentMethods);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [profileStatus, setProfileStatus] = useState<InlineStatus>(null);
   const [paymentStatus, setPaymentStatus] = useState<InlineStatus>(null);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
 
   useEffect(() => {
-    const stored = readStoredInstallerSettings(
-      settingsStorageKey,
-      defaultProfile,
-      defaultPaymentMethods,
-    );
-
-    setProfile(stored.profile);
-    setPaymentMethods(stored.paymentMethods);
-  }, [defaultPaymentMethods, defaultProfile, settingsStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!session) {
+      setIsInitialLoading(false);
       return;
     }
 
-    window.localStorage.setItem(
-      settingsStorageKey,
-      JSON.stringify({
-        profile,
-        paymentMethods,
-      })
-    );
-  }, [paymentMethods, profile, settingsStorageKey]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [profilePayload, paymentPayload, projectPayload, payoutPayload] = await Promise.all([
+          getInstallerProfile(),
+          getInstallerPaymentMethods(),
+          getInstallerProjects({ page: 1, limit: 100 }),
+          getInstallerPayouts({ page: 1, limit: 100 }),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        const profileNames = splitFullName(session.user.fullName);
+
+        setProfile({
+          firstName: profileNames.firstName || defaultProfile.firstName,
+          lastName: profileNames.lastName,
+          email: profilePayload.data.email || session.user.email,
+          phone: session.user.phone ?? "",
+          address: session.user.address ?? "",
+          location: profilePayload.data.primaryLocation || profilePayload.data.location || "",
+          experienceLevel: profilePayload.data.experienceLevel || "Intermediate",
+          additionalInfo: profilePayload.data.additionalInfo || "",
+          skills: profilePayload.data.skills.length > 0 ? profilePayload.data.skills : DEFAULT_SKILLS,
+          completedInstallations: profilePayload.data.completedInstallations,
+          rating: profilePayload.data.rating,
+          tier: profilePayload.data.tier || "Tier I",
+        });
+        setPaymentMethods(paymentPayload.data);
+        setProjects(
+          projectPayload.data.map((project) => ({
+            id: project.id,
+            title: project.title,
+            location: project.location,
+            summary: project.summary,
+            budget: project.budget,
+            startMeta: project.startMeta,
+            status:
+              project.status === "Scheduled" ||
+              project.status === "In Progress" ||
+              project.status === "Completed"
+                ? project.status
+                : "Scheduled",
+            tags: project.tags,
+          })),
+        );
+        setPayoutHistory(
+          payoutPayload.data.map((row) => ({
+            id: row.id,
+            referenceId: row.referenceId,
+            amount: row.amount,
+            date: formatPayoutDate(row.date),
+            status:
+              row.status === "Pending" || row.status === "Approved" || row.status === "Declined"
+                ? row.status
+                : "Pending",
+          })),
+        );
+        setProfileStatus(null);
+        setPaymentStatus(null);
+      } catch (error) {
+        if (!cancelled) {
+          const message =
+            error instanceof Error ? error.message : "Unable to load your installer settings.";
+          setProfileStatus({ tone: "error", message });
+          setPaymentStatus({ tone: "error", message });
+        }
+      } finally {
+        if (!cancelled) {
+          setIsInitialLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultProfile.firstName, session]);
 
   const handleProfileSave = async () => {
     const fullName = `${profile.firstName} ${profile.lastName}`.trim();
@@ -322,18 +299,13 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
     setProfileStatus(null);
 
     try {
-      await updateCurrentUserProfile({
-        name: fullName,
-        phone: profile.phone,
-        address: profile.address,
-      });
-      markInstallerSyncPending("profile");
-
-      queuePendingInstallerSubmission(
-        "installer_profile_sync",
-        "/api/v1/installers/profile",
-        "PATCH",
-        {
+      await Promise.all([
+        updateCurrentUserProfile({
+          name: fullName,
+          phone: profile.phone,
+          address: profile.address,
+        }),
+        updateInstallerProfile({
           email: profile.email,
           location: profile.location,
           experienceLevel: profile.experienceLevel,
@@ -342,13 +314,13 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
           completedInstallations: profile.completedInstallations,
           rating: profile.rating,
           tier: profile.tier,
-        },
-        "Installer-specific profile fields do not have an endpoint yet. Core auth fields synced and extended profile data was queued for later API hookup.",
-      );
+        }),
+      ]);
+      markInstallerSyncComplete("profile");
 
       setProfileStatus({
         tone: "success",
-        message: "Core profile synced. Installer-only fields were queued for the pending endpoint.",
+        message: "Your installer profile has been updated.",
       });
     } catch (error) {
       setProfileStatus({
@@ -391,61 +363,61 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
       return;
     }
 
-    setPaymentMethods((prev) => [
-      ...prev,
-      {
-        id: `method_${Date.now()}`,
+    setIsPaymentSaving(true);
+    setPaymentStatus(null);
+
+    try {
+      await createInstallerPaymentMethod({
         accountName,
         accountNumber,
         bankName,
-      },
-    ]);
-    markInstallerSyncPending("payment_methods");
-    queuePendingInstallerSubmission(
-      "installer_payment_method_create",
-      "/api/v1/installers/payment-methods",
-      "POST",
-      {
-        accountName,
-        accountNumber,
-        bankName,
-      },
-      "Payment method endpoints are still pending. The method was stored locally and queued for later API hookup.",
-    );
-    setPaymentForm({ accountName: "", accountNumber: "", bankName: "" });
-    setIsPaymentModalOpen(false);
-    setPaymentStatus({
-      tone: "info",
-      message: "Payment method stored locally and queued for the pending endpoint.",
-    });
+      });
+      const payload = await getInstallerPaymentMethods();
+      setPaymentMethods(payload.data);
+      markInstallerSyncComplete("payment_methods");
+      setPaymentForm({ accountName: "", accountNumber: "", bankName: "" });
+      setIsPaymentModalOpen(false);
+      setPaymentStatus({
+        tone: "success",
+        message: "Payment method added successfully.",
+      });
+    } catch (error) {
+      setPaymentStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to add this payment method.",
+      });
+    } finally {
+      setIsPaymentSaving(false);
+    }
   };
 
-  const removePaymentMethod = (id: string) => {
-    const method = paymentMethods.find((item) => item.id === id);
+  const removePaymentMethod = async (id: string) => {
+    setIsPaymentSaving(true);
+    setPaymentStatus(null);
 
-    setPaymentMethods((prev) => prev.filter((item) => item.id !== id));
-
-    if (method) {
-      markInstallerSyncPending("payment_methods");
-      queuePendingInstallerSubmission(
-        "installer_payment_method_delete",
-        `/api/v1/installers/payment-methods/${id}`,
-        "DELETE",
-        method,
-        "Payment method delete endpoint is still pending. The local change was queued for later API hookup.",
-      );
+    try {
+      await deleteInstallerPaymentMethod(id);
+      const payload = await getInstallerPaymentMethods();
+      setPaymentMethods(payload.data);
+      markInstallerSyncComplete("payment_methods");
+      setPaymentStatus({
+        tone: "success",
+        message: "Payment method removed successfully.",
+      });
+    } catch (error) {
+      setPaymentStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to remove this payment method.",
+      });
+    } finally {
+      setIsPaymentSaving(false);
     }
-
-    setPaymentStatus({
-      tone: "info",
-      message: "Payment method removed locally and queued for the pending endpoint.",
-    });
   };
 
   const filteredPayoutHistory = useMemo(() => {
-    if (payoutFilter === "All") return PAYOUT_HISTORY;
-    return PAYOUT_HISTORY.filter((row) => row.status === payoutFilter);
-  }, [payoutFilter]);
+    if (payoutFilter === "All") return payoutHistory;
+    return payoutHistory.filter((row) => row.status === payoutFilter);
+  }, [payoutFilter, payoutHistory]);
 
   return (
     <div className="min-h-screen bg-white py-10">
@@ -458,6 +430,10 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
             <ArrowLeft className="h-4 w-4" /> Home
           </Link>
         </div>
+
+        {isInitialLoading ? (
+          <p className="mt-4 text-sm text-[#667085]">Loading your installer settings...</p>
+        ) : null}
 
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[350px_1fr]">
           <aside className="w-full rounded-t-3xl border-t border-x border-[#ECECEC] bg-white p-6 lg:py-10">
@@ -718,7 +694,7 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
 
               {activeTab === "projects" && (
                 <div className="space-y-6">
-                  {PROJECTS.map((project) => (
+                  {projects.map((project) => (
                     <div key={project.id} className="rounded-[22px] border border-[#DCE1E7] bg-white p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -763,6 +739,11 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                       </div>
                     </div>
                   ))}
+                  {projects.length === 0 && !isInitialLoading ? (
+                    <div className="rounded-[22px] border border-[#DCE1E7] bg-white p-6 text-sm text-[#667085]">
+                      No assigned projects yet.
+                    </div>
+                  ) : null}
                 </div>
               )}
 
@@ -819,7 +800,11 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                             </div>
                           </div>
 
-                          <button type="button" onClick={() => removePaymentMethod(method.id)}>
+                          <button
+                            type="button"
+                            onClick={() => void removePaymentMethod(method.id)}
+                            disabled={isPaymentSaving}
+                          >
                             <Trash2 className="h-5 w-5 text-[#D64545]" />
                           </button>
                         </div>
@@ -972,8 +957,13 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
               >
                 Cancel
               </Button>
-              <Button type="button" onClick={addPaymentMethod} className="rounded-xl bg-[#18A11B] hover:bg-[#138A16]">
-                Save Method
+              <Button
+                type="button"
+                onClick={() => void addPaymentMethod()}
+                disabled={isPaymentSaving}
+                className="rounded-xl bg-[#18A11B] hover:bg-[#138A16]"
+              >
+                {isPaymentSaving ? "Saving..." : "Save Method"}
               </Button>
             </div>
           </div>

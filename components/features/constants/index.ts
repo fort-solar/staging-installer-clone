@@ -1,4 +1,4 @@
-export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+export const BASE_URL = process.env.NEXT_PUBLIC_FORTSOLAR_API_BASE_URL;
 import {
   our_packages_one,
   our_packages_two,

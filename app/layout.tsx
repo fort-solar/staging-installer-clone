@@ -7,6 +7,7 @@ import Script from "next/script";
 import { SidebarInitializer } from "@/util/SidebarInitializer";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { getSessionSnapshotFromCookieStore } from "@/lib/auth/session";
+import { env } from "@/lib/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,6 +72,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const initialSession = await getSessionSnapshotFromCookieStore(await cookies());
+  const appId = env.oneSignalAppId;
+  const googleClientId = env.googleClientId;
+  const authTree = (
+    <AuthProvider initialSession={initialSession} portal="installer">
+      {children}
+    </AuthProvider>
+  );
 
   return (
     <html lang="en">
@@ -85,12 +93,20 @@ export default async function RootLayout({
             __html: JSON.stringify(organizationStructuredData),
           }}
         />
+        {appId ? (
+          <Script
+            src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+            strategy="afterInteractive"
+          />
+        ) : null}
         <SidebarInitializer />
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
-          <AuthProvider initialSession={initialSession} portal="installer">
-            {children}
-          </AuthProvider>
-        </GoogleOAuthProvider>
+        {googleClientId ? (
+          <GoogleOAuthProvider clientId={googleClientId}>
+            {authTree}
+          </GoogleOAuthProvider>
+        ) : (
+          authTree
+        )}
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
 "use server";
 
-import { BASE_URL } from "@/components/features/constants";
+import { env } from "@/lib/env";
 import { FormProps, FetchResponseType } from "@/types/api.types";
 
 const submitFormNoAuthentication: (props: FormProps) => FetchResponseType = async ({
@@ -9,7 +9,7 @@ const submitFormNoAuthentication: (props: FormProps) => FetchResponseType = asyn
   values,
 }) => {
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const response = await fetch(`${env.apiBaseUrl}${endpoint}`, {
       method: method ?? "POST",
       headers: {
         Accept: "application/json",
