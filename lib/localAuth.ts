@@ -275,6 +275,10 @@ type LoginPayload = {
   password: string;
 };
 
+type GoogleAuthPayload = {
+  idToken: string;
+};
+
 export const loginMockUser = async (
   payload: LoginPayload,
 ): Promise<{ session?: MockSession; error?: string }> => {
@@ -299,6 +303,31 @@ export const loginMockUser = async (
     };
   }
 };
+
+export async function authenticateWithGoogle(
+  payload: GoogleAuthPayload,
+): Promise<{ session?: MockSession; error?: string }> {
+  try {
+    const response = await appRequest<LoginApiResponse>("/api/auth/google", {
+      method: "POST",
+      body: payload,
+    });
+
+    const installerAccessError = await ensureInstallerPortalAccess(response);
+
+    if (installerAccessError) {
+      return { error: installerAccessError };
+    }
+
+    return {
+      session: syncAuthResponse(response, "installer"),
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to sign in with Google.",
+    };
+  }
+}
 
 export async function requestEmailVerification() {
   return appRequest<VerifyEmailRequestApiResponse>("/api/v1/auth/verify-email/request", {

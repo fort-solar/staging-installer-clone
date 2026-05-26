@@ -4,13 +4,14 @@ import React, {  useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-// import { GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin } from "@react-oauth/google";
+import { useAuth } from "@/components/auth/auth-provider";
 import { AuthInput } from "@/components/features/pages/auth/AuthInput";
 import { PasswordInput } from "@/components/features/pages/auth/PasswordInput";
 import { AuthButton } from "@/components/features/pages/auth/AuthButton";
 import { AuthMessage } from "@/components/features/pages/auth/AuthMessage";
-import { GoogleIcon } from "../../icons/GoogleIcon";
 import {
+  authenticateWithGoogle,
   registerMockUser,
   requestEmailVerification,
   updateCurrentUserProfile,
@@ -30,6 +31,8 @@ const SignupForm = () => {
   const [status, setStatus] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const { refreshSession } = useAuth();
+  const isGoogleAuthEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
   const {
     register,
@@ -98,6 +101,24 @@ const SignupForm = () => {
     setIsSubmitting(false);
   };
 
+  const handleGoogleAuth = async (idToken: string) => {
+    setIsSubmitting(true);
+    setStatus(null);
+    const { error } = await authenticateWithGoogle({ idToken });
+
+    if (error) {
+      setStatus({ tone: "error", message: error });
+      setIsSubmitting(false);
+      return;
+    }
+
+    await refreshSession().catch(() => null);
+    setStatus({ tone: "success", message: "Account created. Redirecting..." });
+    router.push("/installer/dashboard");
+    router.refresh();
+    setIsSubmitting(false);
+  };
+
   return (
     <div className="space-y-8">
       <div className="space-y-3">
@@ -110,26 +131,34 @@ const SignupForm = () => {
         </p>
       </div>
 
-      <div className="space-y-5">
-        <div className="flex items-center justify-center gap-4 rounded-2xl border border-transparent px-4 h-14 text-[#737373] cursor-pointer bg-[#FAFAFA] hover:bg-[#fafafac8]">
-          {/* <GoogleLogin
-                    onSuccess={() => setStatus({ tone: "success", message: "Google sign-in success." })}
-                    onError={() => setStatus({ tone: "error", message: "Google sign-in failed." })}
-                    size="large"
-                    width="100%"
-                    text="continue_with"
-                    shape="rectangular"
-                  /> */}
-          <GoogleIcon />
-          Continue With Google
-        </div>
+      {isGoogleAuthEnabled ? (
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-[#FAFAFA] px-4 py-3">
+            <GoogleLogin
+              onSuccess={(response) => {
+                if (!response.credential) {
+                  setStatus({ tone: "error", message: "Google sign-in did not return an ID token." });
+                  return;
+                }
 
-        <div className="flex items-center gap-4 text-xs uppercase tracking-[0.32em] text-[#94A3B8]">
-          <span className="h-px flex-1 bg-[#E2E8F0]" />
-          Or
-          <span className="h-px flex-1 bg-[#E2E8F0]" />
+                void handleGoogleAuth(response.credential);
+              }}
+              onError={() => setStatus({ tone: "error", message: "Google sign-in failed." })}
+              text="continue_with"
+              shape="rectangular"
+              theme="outline"
+              size="large"
+              width="320"
+            />
+          </div>
+
+          <div className="flex items-center gap-4 text-xs uppercase tracking-[0.32em] text-[#94A3B8]">
+            <span className="h-px flex-1 bg-[#E2E8F0]" />
+            Or
+            <span className="h-px flex-1 bg-[#E2E8F0]" />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <AuthInput
