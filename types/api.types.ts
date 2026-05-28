@@ -82,6 +82,10 @@ export type AuthMeApiResponse = ApiSuccessResponse & {
   user: AuthUser;
 };
 
+export type AuthProfileUpdateApiResponse = ApiSuccessResponse & {
+  user: AuthUser;
+};
+
 export type SessionSnapshot = {
   portal: PortalRole;
   session: AuthSession;

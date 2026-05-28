@@ -1,5 +1,6 @@
 import type {
   AuthMeApiResponse,
+  AuthProfileUpdateApiResponse,
   LoginApiResponse,
   PortalRole,
   RefreshTokenApiResponse,
@@ -121,6 +122,34 @@ export function createSessionSnapshotFromProfile(
   portal: PortalRole = "installer",
 ) {
   return createSessionSnapshot(payload, portal, previousExpiresAt);
+}
+
+export function createSessionSnapshotFromUpdatedUser(
+  payload: AuthProfileUpdateApiResponse,
+  previousSession: SessionSnapshot["session"],
+  previousExpiresAt: string | null = null,
+  portal: PortalRole = "installer",
+) {
+  const fullName =
+    payload.user.fullName.trim() || payload.user.name.trim() || previousSession.fullName;
+
+  return createSessionSnapshot(
+    {
+      session: {
+        ...previousSession,
+        email: payload.user.email,
+        fullName,
+        role: payload.user.role,
+        adminRole: payload.user.adminRole,
+      },
+      user: {
+        ...payload.user,
+        fullName,
+      },
+    },
+    portal,
+    previousExpiresAt,
+  );
 }
 
 export async function serializeSessionSnapshot(snapshot: SessionSnapshot) {

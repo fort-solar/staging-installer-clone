@@ -1,10 +1,15 @@
 "use client";
 
 import { appRequest } from "@/lib/api/client";
-import { createSessionSnapshot, createSessionSnapshotFromProfile } from "@/lib/auth/session";
+import {
+  createSessionSnapshot,
+  createSessionSnapshotFromProfile,
+  createSessionSnapshotFromUpdatedUser,
+} from "@/lib/auth/session";
 import { queuePendingPortalSubmission } from "@/lib/pending-submissions";
 import type {
   AuthMeApiResponse,
+  AuthProfileUpdateApiResponse,
   ClientAuthState,
   LoginApiResponse,
   PortalRole,
@@ -367,12 +372,22 @@ export async function updateCurrentUserProfile(values: {
   phone: string;
   address: string;
 }) {
-  const payload = await appRequest<AuthMeApiResponse>("/api/v1/auth/me", {
+  const payload = await appRequest<AuthProfileUpdateApiResponse>("/api/v1/auth/me", {
     method: "PATCH",
     body: values,
   });
-  const snapshot = createSessionSnapshotFromProfile(payload, readClientAuthState()?.expiresAt ?? null, "installer");
-  syncClientAuthState(snapshot);
+  const state = readClientAuthState();
+
+  if (state) {
+    const snapshot = createSessionSnapshotFromUpdatedUser(
+      payload,
+      state.session,
+      state.expiresAt ?? null,
+      state.portal,
+    );
+    syncClientAuthState(snapshot);
+  }
+
   return payload;
 }
 
