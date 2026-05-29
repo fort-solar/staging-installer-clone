@@ -3,14 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Loader2, UploadCloud, X } from "lucide-react";
 import { LogoFull } from "@/components/features/icons/Logo";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -79,6 +71,26 @@ function toStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function normalizeToken(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function addUniqueValue(list: string[], value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return list;
+  }
+
+  const normalized = normalizeToken(trimmed);
+
+  if (list.some((item) => normalizeToken(item) === normalized)) {
+    return list;
+  }
+
+  return [...list, trimmed];
+}
+
 function buildDefaultState(fullName: string): OnboardingFormState {
   return {
     currentStep: 1,
@@ -102,30 +114,39 @@ function buildDefaultState(fullName: string): OnboardingFormState {
 
 function toOnboardingState(fullName: string, payload: Awaited<ReturnType<typeof getInstallerOnboarding>>["data"]) {
   const fallback = buildDefaultState(fullName);
+  const profileName = toStringValue(payload.profile?.name, fallback.profile.name);
+  const primaryLocation = toStringValue(payload.profile?.primaryLocation);
+  const specializations = toStringArray(payload.profile?.specializations);
+  const verification = {
+    idFileName: toStringValue(payload.verification?.idFileName),
+    certificateFileName: toStringValue(payload.verification?.certificateFileName),
+    idUploadId: toStringValue(payload.verification?.idUploadId),
+    certificateUploadId: toStringValue(payload.verification?.certificateUploadId),
+  };
+  const serviceAreas = toStringArray(payload.serviceAreas);
+  const hasProfileStepCompleted = primaryLocation.trim().length > 0 && specializations.length > 0;
+  const hasVerificationStepCompleted =
+    verification.idFileName.trim().length > 0 && verification.certificateFileName.trim().length > 0;
+  const currentStep = payload.completed
+    ? 3
+    : !hasProfileStepCompleted
+      ? 1
+      : !hasVerificationStepCompleted
+        ? 2
+        : 3;
 
   return {
-    currentStep: payload.completed
-      ? 3
-      : payload.serviceAreas.length > 0
-        ? 3
-        : Object.keys(payload.verification ?? {}).length > 0
-          ? 2
-          : 1,
+    currentStep,
     completed: payload.completed,
     profile: {
-      name: toStringValue(payload.profile?.name, fallback.profile.name),
-      primaryLocation: toStringValue(payload.profile?.primaryLocation),
+      name: profileName,
+      primaryLocation,
       yearsOfExperience: toStringValue(payload.profile?.yearsOfExperience),
-      specializations: toStringArray(payload.profile?.specializations),
+      specializations,
       notifyOnNewJobs: toBooleanValue(payload.profile?.notifyOnNewJobs, true),
     },
-    verification: {
-      idFileName: toStringValue(payload.verification?.idFileName),
-      certificateFileName: toStringValue(payload.verification?.certificateFileName),
-      idUploadId: toStringValue(payload.verification?.idUploadId),
-      certificateUploadId: toStringValue(payload.verification?.certificateUploadId),
-    },
-    serviceAreas: toStringArray(payload.serviceAreas),
+    verification,
+    serviceAreas,
   } satisfies OnboardingFormState;
 }
 
@@ -136,6 +157,8 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [specializationInput, setSpecializationInput] = useState("");
+  const [serviceAreaInput, setServiceAreaInput] = useState("");
 
   useEffect(() => {
     if (!session || session.user.role !== "installer") {
@@ -240,6 +263,25 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
     });
   };
 
+  const addSpecialization = (value: string) => {
+    updateState((previous) => ({
+      ...previous,
+      profile: {
+        ...previous.profile,
+        specializations: addUniqueValue(previous.profile.specializations, value),
+      },
+    }));
+    setSpecializationInput("");
+  };
+
+  const addServiceArea = (value: string) => {
+    updateState((previous) => ({
+      ...previous,
+      serviceAreas: addUniqueValue(previous.serviceAreas, value),
+    }));
+    setServiceAreaInput("");
+  };
+
   async function handleSubmit() {
     const currentState = state;
 
@@ -325,28 +367,36 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                           <FieldLabel className="mb-3 text-base font-medium text-[#3E3F43]">
                             Primary Service Location
                           </FieldLabel>
-                          <Select
+                          <Input
                             value={state.profile.primaryLocation}
-                            onValueChange={(value) =>
+                            onChange={(event) =>
                               updateState((previous) => ({
                                 ...previous,
-                                profile: { ...previous.profile, primaryLocation: value },
+                                profile: { ...previous.profile, primaryLocation: event.target.value },
                               }))
                             }
-                          >
-                            <SelectTrigger className="h-10 w-full rounded-[24px] border-none bg-[#B8C0CC33] px-6 text-base text-[#3B3B3BE5] outline-none">
-                              <SelectValue placeholder="eg. Port Harcourt" />
-                            </SelectTrigger>
-                            <SelectContent className="z-120">
-                              <SelectGroup>
-                                {LOCATIONS.map((location) => (
-                                  <SelectItem key={location} value={location}>
-                                    {location}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
+                            placeholder="eg. Port Harcourt"
+                            className="h-10 w-full rounded-[24px] border-none bg-[#B8C0CC33] px-6 text-base text-[#3B3B3BE5] outline-none"
+                          />
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {LOCATIONS.filter(
+                              (location) => normalizeToken(location) !== normalizeToken(state.profile.primaryLocation),
+                            ).map((location) => (
+                              <button
+                                key={location}
+                                type="button"
+                                onClick={() =>
+                                  updateState((previous) => ({
+                                    ...previous,
+                                    profile: { ...previous.profile, primaryLocation: location },
+                                  }))
+                                }
+                                className="rounded-xl bg-[#5A646F] px-4 py-2 text-xs font-medium text-white"
+                              >
+                                {location}
+                              </button>
+                            ))}
+                          </div>
                         </Field>
 
                         <Field className="space-y-2 gap-0">
@@ -401,6 +451,21 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                                 </span>
                               ))}
                             </div>
+                            <div className="mb-3 flex gap-2">
+                              <Input
+                                value={specializationInput}
+                                onChange={(event) => setSpecializationInput(event.target.value)}
+                                placeholder="Type a specialization"
+                                className="h-10 rounded-[20px] border-none bg-white px-4 text-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => addSpecialization(specializationInput)}
+                                className="rounded-xl bg-[#12A312] px-4 py-2 text-sm font-medium text-white"
+                              >
+                                Add
+                              </button>
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               {SPECIALIZATIONS.filter(
                                 (item) => !state.profile.specializations.includes(item),
@@ -408,18 +473,7 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                                 <button
                                   key={item}
                                   type="button"
-                                  onClick={() =>
-                                    updateState((previous) => ({
-                                      ...previous,
-                                      profile: {
-                                        ...previous.profile,
-                                        specializations: [
-                                          ...previous.profile.specializations,
-                                          item,
-                                        ],
-                                      },
-                                    }))
-                                  }
+                                  onClick={() => addSpecialization(item)}
                                   className="rounded-xl bg-[#5A646F] px-4 py-2 text-xs font-medium text-white"
                                 >
                                   + {item}
@@ -591,12 +645,27 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                               ) : null}
                             </div>
                           </div>
+                          <div className="mt-3 flex gap-2">
+                            <Input
+                              value={serviceAreaInput}
+                              onChange={(event) => setServiceAreaInput(event.target.value)}
+                              placeholder="Type a city"
+                              className="h-10 rounded-[20px] border-[#D0D5DD] px-4 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => addServiceArea(serviceAreaInput)}
+                              className="rounded-xl bg-[#12A312] px-4 py-2 text-sm font-medium text-white"
+                            >
+                              Add
+                            </button>
+                          </div>
                           <div className="mt-3 flex flex-wrap gap-2">
                             {LOCATIONS.filter((area) => !state.serviceAreas.includes(area)).map((area) => (
                               <button
                                 key={area}
                                 type="button"
-                                onClick={() => toggleServiceArea(area)}
+                                onClick={() => addServiceArea(area)}
                                 className="rounded-xl bg-[#5A646F] px-4 py-2 text-xs text-white"
                               >
                                 + {area}
