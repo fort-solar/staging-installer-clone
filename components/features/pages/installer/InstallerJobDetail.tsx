@@ -230,8 +230,10 @@ const InstallerJobDetail = ({ jobId }: { jobId: string }) => {
             {activeJob.title}
           </h1>
           <p className="mt-2 inline-flex items-center gap-1 text-xs text-[#4B5563]">
-            <LocateFixed className="h-4 w-4" /> {activeJob.city}, {activeJob.state}.{" "}
-            <span className="text-[#16A34A]">({activeJob.distanceKm}km away)</span>
+            <LocateFixed className="h-4 w-4" /> {activeJob.location}
+            {activeJob.distanceKm > 0 ? (
+              <span className="text-[#16A34A]">({activeJob.distanceKm}km away)</span>
+            ) : null}
           </p>
 
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">

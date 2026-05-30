@@ -157,6 +157,7 @@ function matchesCategory(job: InstallerJobRecord, category: Category) {
 }
 
 function matchesSystemSize(job: InstallerJobRecord, systemSize: SystemSize) {
+  const numericSystemSize = typeof job.system_size_kw === "number" ? job.system_size_kw : null;
   const normalized = job.systemSize.toLowerCase();
   const jobType = job.jobType.toLowerCase();
 
@@ -165,11 +166,23 @@ function matchesSystemSize(job: InstallerJobRecord, systemSize: SystemSize) {
   }
 
   if (systemSize === "small") {
+    if (numericSystemSize !== null) {
+      return numericSystemSize <= 3.5;
+    }
+
     return normalized.includes("3kva") || normalized.includes("3.5kva");
   }
 
   if (systemSize === "medium") {
+    if (numericSystemSize !== null) {
+      return numericSystemSize > 3.5 && numericSystemSize < 15;
+    }
+
     return normalized.includes("5kva") || normalized.includes("10kva");
+  }
+
+  if (numericSystemSize !== null) {
+    return numericSystemSize >= 15;
   }
 
   return normalized.includes("15kva") || jobType.includes("commercial");
@@ -260,8 +273,11 @@ const InstallerJobsDashboard = () => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         job.title.toLowerCase().includes(normalizedQuery) ||
+        job.location.toLowerCase().includes(normalizedQuery) ||
         job.city.toLowerCase().includes(normalizedQuery) ||
-        job.state.toLowerCase().includes(normalizedQuery);
+        job.state.toLowerCase().includes(normalizedQuery) ||
+        (job.package_request_name ?? "").toLowerCase().includes(normalizedQuery) ||
+        (job.customer_name ?? "").toLowerCase().includes(normalizedQuery);
 
       if (!matchesQuery || !matchesCategory(job, category) || !matchesSystemSize(job, systemSize)) {
         return false;
@@ -488,7 +504,7 @@ const InstallerJobsDashboard = () => {
                 <label className="flex h-11 w-full items-center gap-3 rounded-xl border border-[#D1D5DB] bg-white px-4 lg:w-fit">
                   <Search className="h-4 w-4 text-[#6B7280]" />
                   <input
-                    placeholder="Search by city, state..."
+                    placeholder="Search by title or location..."
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     className="w-full text-sm outline-none lg:w-56"
@@ -654,7 +670,7 @@ const InstallerJobsDashboard = () => {
                         </div>
                         <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[#0F9F2A]">
                           <LocateFixed className="h-4 w-4" />
-                          {job.city}, {job.state}.
+                          {job.location}
                         </p>
                         <p className="mt-3 line-clamp-3 text-sm text-[#5B6472]">
                           {job.summary}

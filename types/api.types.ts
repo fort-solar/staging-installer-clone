@@ -115,11 +115,75 @@ export type NotificationSocketConfigApiResponse = ApiSuccessResponse & {
   defaultEventNames: string[];
 };
 
+export type InstallerJobApiRecord = {
+  id: string;
+  slug?: string;
+  title: string;
+  description?: string;
+  location?: string;
+  status?: string;
+  budget?: string | number;
+  deadline?: string | null;
+  scheduled_date?: string | null;
+  created_at?: string;
+  required_experience_years?: number;
+  installation_id?: string | null;
+  package_request_id?: string | null;
+  package_request_name?: string | null;
+  package_request_status?: string | null;
+  assigned_to?: string | null;
+  customer_user_id?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  system_size_kw?: number | null;
+  notes?: string | null;
+  distanceKm?: number;
+  budgetLabel?: string;
+  postedAgo?: string;
+  jobType?: string;
+  systemSize?: string;
+  duration?: string;
+  startDateLabel?: string;
+  tags?: string[];
+  summary?: string;
+  scope?: string[];
+  requirements?: string[];
+  components?: string[];
+  siteConditions?: string[];
+};
+
 export type InstallerJobRecord = {
   id: string;
+  slug: string;
   title: string;
+  description: string;
+  location: string;
+  status: string;
+  budget: string | number;
+  deadline: string | null;
+  scheduled_date: string | null;
+  created_at: string;
+  required_experience_years: number;
+  installation_id?: string | null;
+  package_request_id?: string | null;
+  package_request_name?: string | null;
+  package_request_status?: string | null;
+  assigned_to?: string | null;
+  customer_user_id?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  address?: string | null;
   city: string;
   state: string;
+  country: string;
+  system_size_kw: number | null;
+  notes: string | null;
   distanceKm: number;
   budgetLabel: string;
   postedAgo: string;
@@ -129,15 +193,14 @@ export type InstallerJobRecord = {
   startDateLabel: string;
   tags: string[];
   summary: string;
-  description: string;
   scope: string[];
   requirements: string[];
   components: string[];
   siteConditions: string[];
 };
 
-export type InstallerJobListApiResponse = ApiCollectionResponse<InstallerJobRecord>;
-export type InstallerJobDetailApiResponse = ApiDataResponse<InstallerJobRecord>;
+export type InstallerJobListApiResponse = ApiCollectionResponse<InstallerJobApiRecord>;
+export type InstallerJobDetailApiResponse = ApiDataResponse<InstallerJobApiRecord>;
 
 export type InstallerJobState = {
   appliedJobIds: string[];
