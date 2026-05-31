@@ -238,10 +238,8 @@ export type InstallerOnboardingProfile = {
 };
 
 export type InstallerOnboardingVerification = {
-  idFileName: string;
-  certificateFileName: string;
-  idUploadId?: string;
-  certificateUploadId?: string;
+  id_file?: Blob | File | null;
+  certificate_file?: Blob | File | null;
 };
 
 export type InstallerOnboardingState = {

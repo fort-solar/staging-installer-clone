@@ -40,10 +40,10 @@ type OnboardingFormState = {
     notifyOnNewJobs: boolean;
   };
   verification: {
+    idFile: File | null;
+    certificateFile: File | null;
     idFileName: string;
     certificateFileName: string;
-    idUploadId: string;
-    certificateUploadId: string;
   };
   serviceAreas: string[];
 };
@@ -71,8 +71,63 @@ function toStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function normalizeToken(value: string) {
   return value.trim().toLowerCase();
+}
+
+function extractFileName(value: string) {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  const [withoutQuery] = normalized.split(/[?#]/, 1);
+  const segments = withoutQuery.split("/").filter(Boolean);
+  return segments[segments.length - 1] ?? normalized;
+}
+
+function extractVerificationDocumentName(value: unknown) {
+  if (typeof value === "string") {
+    return extractFileName(value);
+  }
+
+  if (!isRecord(value)) {
+    return "";
+  }
+
+  const upload = isRecord(value.upload) ? value.upload : value;
+  const directName =
+    toStringValue(upload.original_filename) ||
+    toStringValue(upload.name) ||
+    toStringValue(upload.file_name) ||
+    toStringValue(upload.filename) ||
+    toStringValue(upload.stored_filename);
+
+  if (directName) {
+    return directName;
+  }
+
+  return extractFileName(
+    toStringValue(upload.file_path) ||
+      toStringValue(upload.url) ||
+      toStringValue(upload.path),
+  );
+}
+
+function isAcceptedVerificationFile(file: File) {
+  const normalizedType = file.type.trim().toLowerCase();
+  const normalizedName = file.name.trim().toLowerCase();
+
+  return (
+    normalizedType.startsWith("image/") ||
+    normalizedType === "application/pdf" ||
+    /\.(pdf|png|jpe?g|webp|gif|svg)$/.test(normalizedName)
+  );
 }
 
 function addUniqueValue(list: string[], value: string) {
@@ -103,10 +158,10 @@ function buildDefaultState(fullName: string): OnboardingFormState {
       notifyOnNewJobs: true,
     },
     verification: {
+      idFile: null,
+      certificateFile: null,
       idFileName: "",
       certificateFileName: "",
-      idUploadId: "",
-      certificateUploadId: "",
     },
     serviceAreas: [],
   };
@@ -117,11 +172,18 @@ function toOnboardingState(fullName: string, payload: Awaited<ReturnType<typeof 
   const profileName = toStringValue(payload.profile?.name, fallback.profile.name);
   const primaryLocation = toStringValue(payload.profile?.primaryLocation);
   const specializations = toStringArray(payload.profile?.specializations);
+  const verificationRecord = isRecord(payload.verification) ? payload.verification : {};
+  const idFileName =
+    extractVerificationDocumentName(verificationRecord.id_file) ||
+    toStringValue(verificationRecord.idFileName);
+  const certificateFileName =
+    extractVerificationDocumentName(verificationRecord.certificate_file) ||
+    toStringValue(verificationRecord.certificateFileName);
   const verification = {
-    idFileName: toStringValue(payload.verification?.idFileName),
-    certificateFileName: toStringValue(payload.verification?.certificateFileName),
-    idUploadId: toStringValue(payload.verification?.idUploadId),
-    certificateUploadId: toStringValue(payload.verification?.certificateUploadId),
+    idFile: null,
+    certificateFile: null,
+    idFileName,
+    certificateFileName,
   };
   const serviceAreas = toStringArray(payload.serviceAreas);
   const hasProfileStepCompleted = primaryLocation.trim().length > 0 && specializations.length > 0;
@@ -282,6 +344,28 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
     setServiceAreaInput("");
   };
 
+  const updateVerificationFile = (
+    field: "idFile" | "certificateFile",
+    fileNameField: "idFileName" | "certificateFileName",
+    label: string,
+    file: File | null,
+  ) => {
+    if (file && !isAcceptedVerificationFile(file)) {
+      setMessage(`${label} must be uploaded as a PDF or image file.`);
+      return;
+    }
+
+    setMessage(null);
+    updateState((previous) => ({
+      ...previous,
+      verification: {
+        ...previous.verification,
+        [field]: file,
+        [fileNameField]: file?.name ?? "",
+      },
+    }));
+  };
+
   async function handleSubmit() {
     const currentState = state;
 
@@ -296,14 +380,8 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
       await submitInstallerOnboarding({
         profile: currentState.profile,
         verification: {
-          idFileName: currentState.verification.idFileName,
-          certificateFileName: currentState.verification.certificateFileName,
-          idUploadId:
-            currentState.verification.idUploadId.trim() ||
-            currentState.verification.idFileName.trim(),
-          certificateUploadId:
-            currentState.verification.certificateUploadId.trim() ||
-            currentState.verification.certificateFileName.trim(),
+          id_file: currentState.verification.idFile,
+          certificate_file: currentState.verification.certificateFile,
         },
         serviceAreas: currentState.serviceAreas,
       });
@@ -510,7 +588,7 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                         Verification &amp; Certification
                       </h2>
                       <p className="mt-2 text-base text-[#556070]">
-                        Please upload the required documents to verify your identity and expertise.
+                        Please upload the required documents to verify your identity and expertise. PDF and image files only.
                       </p>
 
                       <div className="mt-10 space-y-6">
@@ -527,32 +605,15 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                             </span>
                             <input
                               type="file"
+                              accept="application/pdf,image/*"
                               className="hidden"
-                              onChange={(event) =>
-                                updateState((previous) => ({
-                                  ...previous,
-                                  verification: {
-                                    ...previous.verification,
-                                    idFileName: event.target.files?.[0]?.name ?? "",
-                                  },
-                                }))
-                              }
+                              onChange={(event) => {
+                                const file = event.target.files?.[0] ?? null;
+                                event.target.value = "";
+                                updateVerificationFile("idFile", "idFileName", "Valid ID", file);
+                              }}
                             />
                           </label>
-                          <Input
-                            value={state.verification.idUploadId}
-                            onChange={(event) =>
-                              updateState((previous) => ({
-                                ...previous,
-                                verification: {
-                                  ...previous.verification,
-                                  idUploadId: event.target.value,
-                                },
-                              }))
-                            }
-                            placeholder="Optional upload reference / upload ID"
-                            className="h-11 rounded-[24px] border-[#D0D5DD]"
-                          />
                           {state.verification.idFileName ? (
                             <p className="flex items-center justify-between text-xs text-[#5A646F] lg:text-sm">
                               <span>{state.verification.idFileName}</span>
@@ -574,32 +635,15 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                             </span>
                             <input
                               type="file"
+                              accept="application/pdf,image/*"
                               className="hidden"
-                              onChange={(event) =>
-                                updateState((previous) => ({
-                                  ...previous,
-                                  verification: {
-                                    ...previous.verification,
-                                    certificateFileName: event.target.files?.[0]?.name ?? "",
-                                  },
-                                }))
-                              }
+                              onChange={(event) => {
+                                const file = event.target.files?.[0] ?? null;
+                                event.target.value = "";
+                                updateVerificationFile("certificateFile", "certificateFileName", "Relevant certification", file);
+                              }}
                             />
                           </label>
-                          <Input
-                            value={state.verification.certificateUploadId}
-                            onChange={(event) =>
-                              updateState((previous) => ({
-                                ...previous,
-                                verification: {
-                                  ...previous.verification,
-                                  certificateUploadId: event.target.value,
-                                },
-                              }))
-                            }
-                            placeholder="Optional upload reference / upload ID"
-                            className="h-11 rounded-[24px] border-[#D0D5DD]"
-                          />
                           {state.verification.certificateFileName ? (
                             <p className="flex items-center justify-between text-xs text-[#5A646F] lg:text-sm">
                               <span>{state.verification.certificateFileName}</span>

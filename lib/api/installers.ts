@@ -523,10 +523,27 @@ export function getInstallerOnboarding() {
   return appGet<InstallerOnboardingApiResponse>("/api/v1/installers/onboarding");
 }
 
+function buildInstallerOnboardingFormData(payload: SubmitInstallerOnboardingPayload) {
+  const formData = new FormData();
+
+  formData.append("profile", JSON.stringify(payload.profile));
+  formData.append("serviceAreas", JSON.stringify(payload.serviceAreas));
+
+  if (payload.verification.id_file) {
+    formData.append("verification[id_file]", payload.verification.id_file);
+  }
+
+  if (payload.verification.certificate_file) {
+    formData.append("verification[certificate_file]", payload.verification.certificate_file);
+  }
+
+  return formData;
+}
+
 export function submitInstallerOnboarding(payload: SubmitInstallerOnboardingPayload) {
   return appRequest<ApiSuccessResponse>("/api/v1/installers/onboarding", {
     method: "POST",
-    body: payload,
+    body: buildInstallerOnboardingFormData(payload),
   });
 }
 
