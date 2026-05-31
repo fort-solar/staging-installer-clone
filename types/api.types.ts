@@ -238,6 +238,8 @@ export type InstallerOnboardingProfile = {
 };
 
 export type InstallerOnboardingVerification = {
+  idFileName?: string;
+  certificateFileName?: string;
   id_file?: Blob | File | null;
   certificate_file?: Blob | File | null;
 };
@@ -261,17 +263,17 @@ export type InstallerProfileRecord = {
   id: string;
   userId: string;
   email: string;
-  location: string;
-  primaryLocation: string;
-  experienceLevel: string;
-  experienceYears: number;
-  additionalInfo: string;
+  location: string | null;
+  primaryLocation: string | null;
+  experienceLevel: string | null;
+  experienceYears: number | null;
+  additionalInfo: string | null;
   skills: string[];
   specializations: string[];
   serviceAreas: string[];
   completedInstallations: number;
   rating: number;
-  tier: string;
+  tier: string | null;
   notifyOnNewJobs: boolean;
   onboardingCompleted: boolean;
   onboardingCompletedAt: string | null;
@@ -280,6 +282,8 @@ export type InstallerProfileRecord = {
 export type InstallerProfileApiResponse = ApiDataResponse<InstallerProfileRecord> & {
   message?: string;
 };
+
+export type SubmitInstallerOnboardingApiResponse = InstallerProfileApiResponse;
 
 export type UpdateInstallerProfilePayload = {
   email?: string;

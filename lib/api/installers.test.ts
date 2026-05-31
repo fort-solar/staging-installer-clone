@@ -1,4 +1,7 @@
-import { normalizeInstallerJobRecord } from "@/lib/api/installers";
+import {
+  normalizeInstallerJobRecord,
+  submitInstallerOnboarding,
+} from "@/lib/api/installers";
 
 describe("normalizeInstallerJobRecord", () => {
   afterEach(() => {
@@ -75,5 +78,117 @@ describe("normalizeInstallerJobRecord", () => {
     expect(normalized.tags).toEqual(["New", "Standard"]);
     expect(normalized.scope).toEqual(["Remove the failed battery bank."]);
     expect(normalized.siteConditions).toEqual(["Indoor installation"]);
+  });
+});
+
+describe("submitInstallerOnboarding", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("serializes the updated multipart onboarding payload", async () => {
+    const originalFetch = global.fetch;
+    const responsePayload = {
+      success: true,
+      message: "Onboarding submitted",
+      data: {
+        id: "installer-1",
+        userId: "user-1",
+        email: "installer@example.com",
+        location: "Lagos",
+        primaryLocation: "Lagos",
+        experienceLevel: null,
+        experienceYears: 3,
+        additionalInfo: null,
+        skills: [],
+        specializations: ["Residential"],
+        serviceAreas: ["Lagos", "Ogun"],
+        completedInstallations: 0,
+        rating: 0,
+        tier: null,
+        notifyOnNewJobs: true,
+        onboardingCompleted: true,
+        onboardingCompletedAt: "2026-05-30T12:00:00.000Z",
+      },
+    };
+    const fetchMock = jest.fn().mockResolvedValue(
+      {
+        ok: true,
+        status: 200,
+        headers: {
+          get: (name: string) =>
+            name.toLowerCase() === "content-type" ? "application/json" : null,
+        },
+        json: async () => responsePayload,
+        text: async () => JSON.stringify(responsePayload),
+      },
+    );
+    Object.defineProperty(global, "fetch", {
+      configurable: true,
+      writable: true,
+      value: fetchMock,
+    });
+    const idFile = new File(["id"], "installer-id.pdf", {
+      type: "application/pdf",
+    });
+    const certificateFile = new File(["certificate"], "nabcep.png", {
+      type: "image/png",
+    });
+
+    try {
+      await submitInstallerOnboarding({
+        profile: {
+          name: "Installer Example",
+          primaryLocation: "Lagos",
+          yearsOfExperience: "3",
+          specializations: ["Residential"],
+          notifyOnNewJobs: true,
+        },
+        verification: {
+          idFileName: idFile.name,
+          certificateFileName: certificateFile.name,
+          id_file: idFile,
+          certificate_file: certificateFile,
+        },
+        serviceAreas: ["Lagos", "Ogun"],
+      });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      const [path, init] = fetchMock.mock.calls[0] ?? [];
+      expect(path).toBe("/api/proxy/api/v1/installers/onboarding");
+
+      const body = init?.body;
+      expect(body).toBeInstanceOf(FormData);
+
+      const formData = body as FormData;
+      expect(JSON.parse(String(formData.get("Profile")))).toEqual({
+        name: "Installer Example",
+        primaryLocation: "Lagos",
+        location: "Lagos",
+        yearsOfExperience: "3",
+        experienceYears: 3,
+        specializations: ["Residential"],
+        notifyOnNewJobs: true,
+      });
+      expect(JSON.parse(String(formData.get("ServiceAreas")))).toEqual([
+        "Lagos",
+        "Ogun",
+      ]);
+      expect(JSON.parse(String(formData.get("Verification")))).toEqual({
+        idFileName: "installer-id.pdf",
+        certificateFileName: "nabcep.png",
+      });
+      expect(formData.get("id_file")).toBe(idFile);
+      expect(formData.get("certificate_file")).toBe(certificateFile);
+      expect(formData.get("profile")).toBeNull();
+      expect(formData.get("serviceAreas")).toBeNull();
+    } finally {
+      Object.defineProperty(global, "fetch", {
+        configurable: true,
+        writable: true,
+        value: originalFetch,
+      });
+    }
   });
 });

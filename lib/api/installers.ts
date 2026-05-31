@@ -18,6 +18,7 @@ import type {
   ReportInstallerJobIssuePayload,
   SaveInstallerJobPayload,
   StartInstallerJobPayload,
+  SubmitInstallerOnboardingApiResponse,
   SubmitInstallerOnboardingPayload,
   UpdateInstallerProfilePayload,
 } from "@/types/api.types";
@@ -525,23 +526,40 @@ export function getInstallerOnboarding() {
 
 function buildInstallerOnboardingFormData(payload: SubmitInstallerOnboardingPayload) {
   const formData = new FormData();
+  const parsedExperienceYears = Number.parseInt(payload.profile.yearsOfExperience, 10);
+  const profile = {
+    ...payload.profile,
+    location: payload.profile.primaryLocation,
+    experienceYears: Number.isFinite(parsedExperienceYears) ? parsedExperienceYears : null,
+  };
+  const verification = {
+    idFileName:
+      payload.verification.idFileName?.trim() ||
+      (payload.verification.id_file instanceof File ? payload.verification.id_file.name : ""),
+    certificateFileName:
+      payload.verification.certificateFileName?.trim() ||
+      (payload.verification.certificate_file instanceof File
+        ? payload.verification.certificate_file.name
+        : ""),
+  };
 
-  formData.append("profile", JSON.stringify(payload.profile));
-  formData.append("serviceAreas", JSON.stringify(payload.serviceAreas));
+  formData.append("Profile", JSON.stringify(profile));
+  formData.append("ServiceAreas", JSON.stringify(payload.serviceAreas));
+  formData.append("Verification", JSON.stringify(verification));
 
   if (payload.verification.id_file) {
-    formData.append("verification[id_file]", payload.verification.id_file);
+    formData.append("id_file", payload.verification.id_file);
   }
 
   if (payload.verification.certificate_file) {
-    formData.append("verification[certificate_file]", payload.verification.certificate_file);
+    formData.append("certificate_file", payload.verification.certificate_file);
   }
 
   return formData;
 }
 
 export function submitInstallerOnboarding(payload: SubmitInstallerOnboardingPayload) {
-  return appRequest<ApiSuccessResponse>("/api/v1/installers/onboarding", {
+  return appRequest<SubmitInstallerOnboardingApiResponse>("/api/v1/installers/onboarding", {
     method: "POST",
     body: buildInstallerOnboardingFormData(payload),
   });

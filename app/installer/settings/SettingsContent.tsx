@@ -97,8 +97,6 @@ const tabs = [
   },
 ] as const;
 
-const DEFAULT_SKILLS = ["Battery Configuration", "Residential", "Domestic", "Commercial"];
-
 const EXPERIENCE_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert", "Master"];
 
 const statusTone: Record<ProjectStatus, string> = {
@@ -182,12 +180,12 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
     phone: sessionPhone,
     address: sessionAddress,
     location: "",
-    experienceLevel: "Intermediate",
+    experienceLevel: "",
     additionalInfo: "",
-    skills: DEFAULT_SKILLS,
+    skills: [],
     completedInstallations: 0,
     rating: 0,
-    tier: "Tier I",
+    tier: "",
   }), [sessionAddress, sessionEmail, sessionNames.firstName, sessionNames.lastName, sessionPhone]);
 
   const [profile, setProfile] = useState<InstallerProfileState>(defaultProfile);
@@ -226,12 +224,12 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
           phone: session.user.phone ?? "",
           address: session.user.address ?? "",
           location: profilePayload.data.primaryLocation || profilePayload.data.location || "",
-          experienceLevel: profilePayload.data.experienceLevel || "Intermediate",
+          experienceLevel: profilePayload.data.experienceLevel || "",
           additionalInfo: profilePayload.data.additionalInfo || "",
-          skills: profilePayload.data.skills.length > 0 ? profilePayload.data.skills : DEFAULT_SKILLS,
-          completedInstallations: profilePayload.data.completedInstallations,
-          rating: profilePayload.data.rating,
-          tier: profilePayload.data.tier || "Tier I",
+          skills: profilePayload.data.skills,
+          completedInstallations: profilePayload.data.completedInstallations ?? 0,
+          rating: profilePayload.data.rating ?? 0,
+          tier: profilePayload.data.tier || "",
         });
         setPaymentMethods(paymentPayload.data);
         setProjects(
@@ -452,9 +450,11 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                 <span className="mt-2 inline-flex items-center rounded-l-full bg-[#168ABD1A] px-4 py-1 text-sm font-medium text-[#168ABD]">
                   Installer
                 </span>
-                <span className="bg-[#EBFAEB] mt-2 inline-flex items-center rounded-r-full px-4 py-1 text-sm font-medium text-[#036D03]">
-                  {profile.tier}
-                </span>
+                {profile.tier ? (
+                  <span className="bg-[#EBFAEB] mt-2 inline-flex items-center rounded-r-full px-4 py-1 text-sm font-medium text-[#036D03]">
+                    {profile.tier}
+                  </span>
+                ) : null}
               </div>
             </div>
 
@@ -514,6 +514,9 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                     {skill}
                   </span>
                 ))}
+                {profile.skills.length === 0 ? (
+                  <span className="text-sm text-[#667085]">No skills added yet.</span>
+                ) : null}
               </div>
             </div>
 
@@ -586,6 +589,7 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                         onChange={(e) => setProfile((prev) => ({ ...prev, experienceLevel: e.target.value }))}
                         className="h-12 w-full rounded-xl border border-[#E3E3E3] bg-white px-3 text-base outline-none"
                       >
+                        <option value="">Select experience level</option>
                         {EXPERIENCE_LEVELS.map((level) => (
                           <option key={level} value={level}>
                             {level}
@@ -636,6 +640,9 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                             )}
                           </span>
                         ))}
+                        {profile.skills.length === 0 ? (
+                          <span className="text-sm text-[#667085]">No skills added yet.</span>
+                        ) : null}
                       </div>
 
                       {isSkillEditorOpen && (
@@ -662,7 +669,7 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                         <div>
                           <p className="text-sm font-medium text-[#202020]">Save profile changes</p>
                           <p className="text-xs text-[#667085]">
-                            Name, phone, and address sync through `/api/v1/auth/me`. Installer-only fields are kept locally and queued until their endpoint is ready.
+                            Name, phone, and address sync through `/api/v1/auth/me`. Installer profile details save to `/api/v1/installers/profile`.
                           </p>
                         </div>
                         <Button

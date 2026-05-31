@@ -9,6 +9,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useGeneralStore } from "@/store/GeneralStore";
 import {
   getInstallerOnboarding,
+  getInstallerProfile,
   submitInstallerOnboarding,
 } from "@/lib/api/installers";
 
@@ -60,7 +61,15 @@ const StepDots = ({ step }: { step: 1 | 2 | 3 }) => (
 );
 
 function toStringValue(value: unknown, fallback = "") {
-  return typeof value === "string" ? value : fallback;
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return fallback;
 }
 
 function toBooleanValue(value: unknown, fallback = true) {
@@ -167,17 +176,31 @@ function buildDefaultState(fullName: string): OnboardingFormState {
   };
 }
 
-function toOnboardingState(fullName: string, payload: Awaited<ReturnType<typeof getInstallerOnboarding>>["data"]) {
+function toOnboardingState(
+  fullName: string,
+  payload: Awaited<ReturnType<typeof getInstallerOnboarding>>["data"],
+  installerProfile?: Awaited<ReturnType<typeof getInstallerProfile>>["data"] | null,
+) {
   const fallback = buildDefaultState(fullName);
-  const profileName = toStringValue(payload.profile?.name, fallback.profile.name);
-  const primaryLocation = toStringValue(payload.profile?.primaryLocation);
-  const specializations = toStringArray(payload.profile?.specializations);
+  const onboardingProfile = isRecord(payload.profile) ? payload.profile : {};
+  const profileName = toStringValue(onboardingProfile.name, fallback.profile.name);
+  const primaryLocation =
+    toStringValue(onboardingProfile.primaryLocation) ||
+    toStringValue(onboardingProfile.location) ||
+    toStringValue(installerProfile?.primaryLocation) ||
+    toStringValue(installerProfile?.location);
+  const specializations =
+    toStringArray(onboardingProfile.specializations).length > 0
+      ? toStringArray(onboardingProfile.specializations)
+      : toStringArray(installerProfile?.specializations);
   const verificationRecord = isRecord(payload.verification) ? payload.verification : {};
   const idFileName =
     extractVerificationDocumentName(verificationRecord.id_file) ||
+    extractVerificationDocumentName(verificationRecord.id_file_url) ||
     toStringValue(verificationRecord.idFileName);
   const certificateFileName =
     extractVerificationDocumentName(verificationRecord.certificate_file) ||
+    extractVerificationDocumentName(verificationRecord.certificate_file_url) ||
     toStringValue(verificationRecord.certificateFileName);
   const verification = {
     idFile: null,
@@ -185,11 +208,15 @@ function toOnboardingState(fullName: string, payload: Awaited<ReturnType<typeof 
     idFileName,
     certificateFileName,
   };
-  const serviceAreas = toStringArray(payload.serviceAreas);
+  const serviceAreas =
+    toStringArray(payload.serviceAreas).length > 0
+      ? toStringArray(payload.serviceAreas)
+      : toStringArray(installerProfile?.serviceAreas);
+  const completed = payload.completed || Boolean(installerProfile?.onboardingCompleted);
   const hasProfileStepCompleted = primaryLocation.trim().length > 0 && specializations.length > 0;
   const hasVerificationStepCompleted =
     verification.idFileName.trim().length > 0 && verification.certificateFileName.trim().length > 0;
-  const currentStep = payload.completed
+  const currentStep = completed
     ? 3
     : !hasProfileStepCompleted
       ? 1
@@ -199,13 +226,19 @@ function toOnboardingState(fullName: string, payload: Awaited<ReturnType<typeof 
 
   return {
     currentStep,
-    completed: payload.completed,
+    completed,
     profile: {
       name: profileName,
       primaryLocation,
-      yearsOfExperience: toStringValue(payload.profile?.yearsOfExperience),
+      yearsOfExperience:
+        toStringValue(onboardingProfile.yearsOfExperience) ||
+        toStringValue(onboardingProfile.experienceYears) ||
+        toStringValue(installerProfile?.experienceYears),
       specializations,
-      notifyOnNewJobs: toBooleanValue(payload.profile?.notifyOnNewJobs, true),
+      notifyOnNewJobs:
+        typeof onboardingProfile.notifyOnNewJobs === "boolean"
+          ? onboardingProfile.notifyOnNewJobs
+          : toBooleanValue(installerProfile?.notifyOnNewJobs, true),
     },
     verification,
     serviceAreas,
@@ -231,17 +264,46 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
     let cancelled = false;
 
     (async () => {
-      try {
-        const payload = await getInstallerOnboarding();
+      const [onboardingResult, profileResult] = await Promise.allSettled([
+        getInstallerOnboarding(),
+        getInstallerProfile(),
+      ]);
 
-        if (cancelled) {
-          return;
+      if (cancelled) {
+        return;
+      }
+
+      try {
+        if (onboardingResult.status !== "fulfilled") {
+          throw onboardingResult.reason;
         }
 
-        setState(toOnboardingState(session.user.fullName, payload.data));
+        const profileData =
+          profileResult.status === "fulfilled" ? profileResult.value.data : null;
+        setState(toOnboardingState(session.user.fullName, onboardingResult.value.data, profileData));
         setMessage(null);
       } catch (error) {
-        if (cancelled) {
+        const profileData =
+          profileResult.status === "fulfilled" ? profileResult.value.data : null;
+
+        if (profileData) {
+          setState(
+            toOnboardingState(
+              session.user.fullName,
+              {
+                completed: Boolean(profileData.onboardingCompleted),
+                profile: {},
+                verification: {},
+                serviceAreas: profileData.serviceAreas,
+              },
+              profileData,
+            ),
+          );
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : "Unable to load your onboarding state. Showing your saved profile details instead.",
+          );
           return;
         }
 
@@ -377,15 +439,44 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
     setMessage(null);
 
     try {
-      await submitInstallerOnboarding({
+      const response = await submitInstallerOnboarding({
         profile: currentState.profile,
         verification: {
+          idFileName: currentState.verification.idFileName,
+          certificateFileName: currentState.verification.certificateFileName,
           id_file: currentState.verification.idFile,
           certificate_file: currentState.verification.certificateFile,
         },
         serviceAreas: currentState.serviceAreas,
       });
-      setState((previous) => (previous ? { ...previous, completed: true, currentStep: 3 } : previous));
+      setState((previous) =>
+        previous
+          ? {
+              ...previous,
+              completed: response.data.onboardingCompleted,
+              currentStep: 3,
+              profile: {
+                ...previous.profile,
+                primaryLocation:
+                  response.data.primaryLocation ??
+                  response.data.location ??
+                  previous.profile.primaryLocation,
+                yearsOfExperience:
+                  toStringValue(response.data.experienceYears) ||
+                  previous.profile.yearsOfExperience,
+                specializations:
+                  response.data.specializations.length > 0
+                    ? response.data.specializations
+                    : previous.profile.specializations,
+                notifyOnNewJobs: response.data.notifyOnNewJobs,
+              },
+              serviceAreas:
+                response.data.serviceAreas.length > 0
+                  ? response.data.serviceAreas
+                  : previous.serviceAreas,
+            }
+          : previous,
+      );
       markInstallerSyncComplete("onboarding");
     } catch (error) {
       setMessage(
