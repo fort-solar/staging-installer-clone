@@ -129,6 +129,37 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  button:not(:disabled),
+  [data-slot="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      opacity 160ms ease,
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
+  }
+
+  button:disabled,
+  [data-slot="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+@media (hover: hover) {
+  button:not(:disabled):hover,
+  [data-slot="button"]:not([aria-disabled="true"]):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  }
+
+  button:not(:disabled):active,
+  [data-slot="button"]:not([aria-disabled="true"]):active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
 }
 
 .fortsolar-auth-gradient {
