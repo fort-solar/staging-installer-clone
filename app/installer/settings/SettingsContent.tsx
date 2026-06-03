@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ChevronDown, EllipsisVertical, Info, MapPin, Plus, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PaginationControls from "@/components/ui/pagination-controls";
 import { SmartTabsInstaller, type TabKeyInstaller } from "@/lib/smartTabs";
 import { BankIcon } from "@/components/features/icons/BankIcon";
 import { HistoryIcon } from "@/components/features/icons/HistoryIcon";
@@ -24,6 +25,7 @@ import {
   getInstallerProjects,
   updateInstallerProfile,
 } from "@/lib/api/installers";
+import type { PaginationMeta } from "@/types/api.types";
 
 type InstallerProfileState = {
   firstName: string;
@@ -111,6 +113,10 @@ const payoutTone: Record<PayoutStatus, string> = {
   Declined: "bg-[#FCE5E5] text-[#E24646]",
 };
 
+const PAGE_SIZE = 20;
+const PROJECTS_PAGE_SIZE = PAGE_SIZE;
+const PAYOUTS_PAGE_SIZE = PAGE_SIZE;
+
 const InfoItem = ({
   icon,
   label,
@@ -158,7 +164,13 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
   const [payoutFilter, setPayoutFilter] = useState<PayoutFilter>("All");
   const [projects, setProjects] = useState<InstallerProject[]>([]);
   const [payoutHistory, setPayoutHistory] = useState<PayoutHistoryRow[]>([]);
+  const [projectsPagination, setProjectsPagination] = useState<PaginationMeta | null>(null);
+  const [payoutsPagination, setPayoutsPagination] = useState<PaginationMeta | null>(null);
+  const [projectsPage, setProjectsPage] = useState(1);
+  const [payoutsPage, setPayoutsPage] = useState(1);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [isPayoutsLoading, setIsPayoutsLoading] = useState(false);
   const [isPaymentSaving, setIsPaymentSaving] = useState(false);
 
   const [paymentForm, setPaymentForm] = useState({
@@ -192,10 +204,16 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [profileStatus, setProfileStatus] = useState<InlineStatus>(null);
   const [paymentStatus, setPaymentStatus] = useState<InlineStatus>(null);
+  const [projectsStatus, setProjectsStatus] = useState<InlineStatus>(null);
+  const [payoutStatus, setPayoutStatus] = useState<InlineStatus>(null);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
 
   useEffect(() => {
     if (!session) {
+      setProjects([]);
+      setPayoutHistory([]);
+      setProjectsPagination(null);
+      setPayoutsPagination(null);
       setIsInitialLoading(false);
       return;
     }
@@ -204,11 +222,9 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
 
     (async () => {
       try {
-        const [profilePayload, paymentPayload, projectPayload, payoutPayload] = await Promise.all([
+        const [profilePayload, paymentPayload] = await Promise.all([
           getInstallerProfile(),
           getInstallerPaymentMethods(),
-          getInstallerProjects({ page: 1, limit: 100 }),
-          getInstallerPayouts({ page: 1, limit: 100 }),
         ]);
 
         if (cancelled) {
@@ -232,35 +248,6 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
           tier: profilePayload.data.tier || "",
         });
         setPaymentMethods(paymentPayload.data);
-        setProjects(
-          projectPayload.data.map((project) => ({
-            id: project.id,
-            title: project.title,
-            location: project.location,
-            summary: project.summary,
-            budget: project.budget,
-            startMeta: project.startMeta,
-            status:
-              project.status === "Scheduled" ||
-              project.status === "In Progress" ||
-              project.status === "Completed"
-                ? project.status
-                : "Scheduled",
-            tags: project.tags,
-          })),
-        );
-        setPayoutHistory(
-          payoutPayload.data.map((row) => ({
-            id: row.id,
-            referenceId: row.referenceId,
-            amount: row.amount,
-            date: formatPayoutDate(row.date),
-            status:
-              row.status === "Pending" || row.status === "Approved" || row.status === "Declined"
-                ? row.status
-                : "Pending",
-          })),
-        );
         setProfileStatus(null);
         setPaymentStatus(null);
       } catch (error) {
@@ -281,6 +268,121 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
       cancelled = true;
     };
   }, [defaultProfile.firstName, session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsProjectsLoading(true);
+
+    getInstallerProjects({ page: projectsPage, limit: PROJECTS_PAGE_SIZE })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+
+        setProjects(
+          payload.data.map((project) => ({
+            id: project.id,
+            title: project.title,
+            location: project.location,
+            summary: project.summary,
+            budget: project.budget,
+            startMeta: project.startMeta,
+            status:
+              project.status === "Scheduled" ||
+              project.status === "In Progress" ||
+              project.status === "Completed"
+                ? project.status
+                : "Scheduled",
+            tags: project.tags,
+          })),
+        );
+        setProjectsPagination(payload.pagination ?? null);
+        setProjectsStatus(null);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setProjectsStatus({
+            tone: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unable to load your assigned projects right now.",
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsProjectsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectsPage, session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsPayoutsLoading(true);
+
+    getInstallerPayouts({
+      page: payoutsPage,
+      limit: PAYOUTS_PAGE_SIZE,
+      status: payoutFilter,
+    })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+
+        setPayoutHistory(
+          payload.data.map((row) => ({
+            id: row.id,
+            referenceId: row.referenceId,
+            amount: row.amount,
+            date: formatPayoutDate(row.date),
+            status:
+              row.status === "Pending" || row.status === "Approved" || row.status === "Declined"
+                ? row.status
+                : "Pending",
+          })),
+        );
+        setPayoutsPagination(payload.pagination ?? null);
+        setPayoutStatus(null);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPayoutStatus({
+            tone: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unable to load your payout history right now.",
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsPayoutsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [payoutFilter, payoutsPage, session]);
+
+  useEffect(() => {
+    setPayoutsPage(1);
+  }, [payoutFilter]);
 
   const handleProfileSave = async () => {
     const fullName = `${profile.firstName} ${profile.lastName}`.trim();
@@ -411,11 +513,6 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
       setIsPaymentSaving(false);
     }
   };
-
-  const filteredPayoutHistory = useMemo(() => {
-    if (payoutFilter === "All") return payoutHistory;
-    return payoutHistory.filter((row) => row.status === payoutFilter);
-  }, [payoutFilter, payoutHistory]);
 
   return (
     <div className="min-h-screen bg-white py-10">
@@ -701,6 +798,26 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
 
               {activeTab === "projects" && (
                 <div className="space-y-6">
+                  {projectsStatus ? (
+                    <p
+                      className={`text-sm ${
+                        projectsStatus.tone === "error"
+                          ? "text-[#D64545]"
+                          : projectsStatus.tone === "success"
+                            ? "text-[#15803D]"
+                            : "text-[#475467]"
+                      }`}
+                    >
+                      {projectsStatus.message}
+                    </p>
+                  ) : null}
+
+                  {isProjectsLoading && projects.length === 0 ? (
+                    <div className="rounded-[22px] border border-[#DCE1E7] bg-white p-6 text-sm text-[#667085]">
+                      Loading assigned projects...
+                    </div>
+                  ) : null}
+
                   {projects.map((project) => (
                     <div key={project.id} className="rounded-[22px] border border-[#DCE1E7] bg-white p-5">
                       <div className="flex items-start justify-between gap-3">
@@ -746,10 +863,20 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                       </div>
                     </div>
                   ))}
-                  {projects.length === 0 && !isInitialLoading ? (
+                  {projects.length === 0 && !isInitialLoading && !isProjectsLoading ? (
                     <div className="rounded-[22px] border border-[#DCE1E7] bg-white p-6 text-sm text-[#667085]">
                       No assigned projects yet.
                     </div>
+                  ) : null}
+
+                  {projects.length > 0 ? (
+                    <PaginationControls
+                      className="pt-2"
+                      page={projectsPagination?.page ?? projectsPage}
+                      totalPages={projectsPagination?.totalPages ?? 1}
+                      totalItems={projectsPagination?.total ?? projects.length}
+                      onPageChange={setProjectsPage}
+                    />
                   ) : null}
                 </div>
               )}
@@ -861,6 +988,26 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                       </div>
                     </div>
 
+                    {payoutStatus ? (
+                      <p
+                        className={`mt-4 text-sm ${
+                          payoutStatus.tone === "error"
+                            ? "text-[#D64545]"
+                            : payoutStatus.tone === "success"
+                              ? "text-[#15803D]"
+                              : "text-[#475467]"
+                        }`}
+                      >
+                        {payoutStatus.message}
+                      </p>
+                    ) : null}
+
+                    {isPayoutsLoading && payoutHistory.length === 0 ? (
+                      <div className="mt-4 rounded-[18px] border border-[#E5E9EF] bg-[#F8FAFC] px-4 py-5 text-sm text-[#667085]">
+                        Loading payout history...
+                      </div>
+                    ) : null}
+
                     <div className="mt-4 overflow-x-auto">
                       <table className="w-full min-w-150 text-left">
                         <thead>
@@ -873,7 +1020,7 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredPayoutHistory.map((row) => (
+                          {payoutHistory.map((row) => (
                             <tr key={row.id} className="text-base text-[#556070] border-b">
                               <td className="py-3">{row.referenceId}</td>
                               <td className="py-3">{row.amount}</td>
@@ -898,7 +1045,7 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                               </td>
                             </tr>
                           ))}
-                          {filteredPayoutHistory.length === 0 && (
+                          {payoutHistory.length === 0 && (
                             <tr>
                               <td colSpan={5} className="py-6 text-center text-sm text-[#7B8593]">
                                 No payout records for this filter.
@@ -908,6 +1055,16 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                         </tbody>
                       </table>
                     </div>
+
+                    {payoutHistory.length > 0 ? (
+                      <PaginationControls
+                        className="mt-6"
+                        page={payoutsPagination?.page ?? payoutsPage}
+                        totalPages={payoutsPagination?.totalPages ?? 1}
+                        totalItems={payoutsPagination?.total ?? payoutHistory.length}
+                        onPageChange={setPayoutsPage}
+                      />
+                    ) : null}
                   </div>
                 </div>
               )}

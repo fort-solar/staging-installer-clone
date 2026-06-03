@@ -27,6 +27,7 @@ import {
   unsaveInstallerJob,
 } from "@/lib/api/installers";
 import { useAuth } from "@/components/auth/auth-provider";
+import PaginationControls from "@/components/ui/pagination-controls";
 import { useGeneralStore } from "@/store/GeneralStore";
 import { InstallerNotificationCenter } from "@/components/features/layout/InstallerNotificationCenter";
 import type { InstallerJobRecord, PaginationMeta } from "@/types/api.types";
@@ -58,6 +59,8 @@ const systemSizeItems = [
   { key: "medium" as SystemSize, label: "Medium (5kVA - 10kVA)" },
   { key: "commercial" as SystemSize, label: "Commercial (15kVA+)" },
 ];
+
+const JOBS_PAGE_SIZE = 20;
 
 type SidebarFiltersProps = {
   isMobile?: boolean;
@@ -129,63 +132,20 @@ const SidebarFilters = ({
   </aside>
 );
 
-function matchesCategory(job: InstallerJobRecord, category: Category) {
-  const title = job.title.toLowerCase();
-  const jobType = job.jobType.toLowerCase();
+function useDebouncedValue<T>(value: T, delayMs = 300) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
 
-  if (category === "all") {
-    return true;
-  }
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delayMs);
 
-  if (category === "full_installation") {
-    return jobType.includes("full");
-  }
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [delayMs, value]);
 
-  if (category === "maintenance") {
-    return title.includes("maintenance") || jobType.includes("maintenance");
-  }
-
-  if (category === "repairs") {
-    return title.includes("repair") || title.includes("troubleshoot");
-  }
-
-  if (category === "audits") {
-    return title.includes("audit");
-  }
-
-  return title.includes("battery");
-}
-
-function matchesSystemSize(job: InstallerJobRecord, systemSize: SystemSize) {
-  const numericSystemSize = typeof job.system_size_kw === "number" ? job.system_size_kw : null;
-  const normalized = job.systemSize.toLowerCase();
-  const jobType = job.jobType.toLowerCase();
-
-  if (systemSize === "all") {
-    return true;
-  }
-
-  if (systemSize === "small") {
-    if (numericSystemSize !== null) {
-      return numericSystemSize <= 3.5;
-    }
-
-    return normalized.includes("3kva") || normalized.includes("3.5kva");
-  }
-
-  if (systemSize === "medium") {
-    if (numericSystemSize !== null) {
-      return numericSystemSize > 3.5 && numericSystemSize < 15;
-    }
-
-    return normalized.includes("5kva") || normalized.includes("10kva");
-  }
-
-  if (numericSystemSize !== null) {
-    return numericSystemSize >= 15;
-  }
-
-  return normalized.includes("15kva") || jobType.includes("commercial");
+  return debouncedValue;
 }
 
 const InstallerJobsDashboard = () => {
@@ -217,6 +177,7 @@ const InstallerJobsDashboard = () => {
   const setCategorySidebarOpen = useGeneralStore((state) => state.setCategorySidebarOpen);
   const toggleCategorySidebar = useGeneralStore((state) => state.toggleCategorySidebar);
   const markInstallerSyncComplete = useGeneralStore((state) => state.markInstallerSyncComplete);
+  const debouncedQuery = useDebouncedValue(query);
 
   const userInitial = session?.user.fullName?.charAt(0)?.toUpperCase() ?? "A";
   const userName = session?.user.fullName ?? "Installer User";
@@ -226,7 +187,15 @@ const InstallerJobsDashboard = () => {
     setIsLoadingJobs(true);
 
     try {
-      const payload = await listInstallerJobs({ page: nextPage, limit: 24 });
+      const payload = await listInstallerJobs({
+        page: nextPage,
+        limit: JOBS_PAGE_SIZE,
+        search: debouncedQuery.trim() || undefined,
+        tab: activeTab,
+        sort: sortOrder,
+        category,
+        systemSize,
+      });
       setJobs(payload.data);
       setPagination(payload.pagination ?? null);
       setJobsError(null);
@@ -235,7 +204,7 @@ const InstallerJobsDashboard = () => {
     } finally {
       setIsLoadingJobs(false);
     }
-  }, []);
+  }, [activeTab, category, debouncedQuery, sortOrder, systemSize]);
 
   const loadJobState = useCallback(async () => {
     setIsLoadingJobState(true);
@@ -260,42 +229,15 @@ const InstallerJobsDashboard = () => {
   }, [loadJobs, page]);
 
   useEffect(() => {
+    setPage(1);
+  }, [activeTab, category, debouncedQuery, sortOrder, systemSize]);
+
+  useEffect(() => {
     void loadJobState();
   }, [loadJobState]);
 
-  const visibleJobs = useMemo(() => {
-    if (activeTab === "completed") {
-      return [] as InstallerJobRecord[];
-    }
-
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = jobs.filter((job) => {
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        job.title.toLowerCase().includes(normalizedQuery) ||
-        job.location.toLowerCase().includes(normalizedQuery) ||
-        job.city.toLowerCase().includes(normalizedQuery) ||
-        job.state.toLowerCase().includes(normalizedQuery) ||
-        (job.package_request_name ?? "").toLowerCase().includes(normalizedQuery) ||
-        (job.customer_name ?? "").toLowerCase().includes(normalizedQuery);
-
-      if (!matchesQuery || !matchesCategory(job, category) || !matchesSystemSize(job, systemSize)) {
-        return false;
-      }
-
-      if (activeTab === "applications") {
-        return jobState.appliedJobIds.includes(job.id);
-      }
-
-      if (activeTab === "saved") {
-        return jobState.savedJobIds.includes(job.id);
-      }
-
-      return true;
-    });
-
-    return sortOrder === "oldest" ? [...filtered].reverse() : filtered;
-  }, [activeTab, category, jobState.appliedJobIds, jobState.savedJobIds, jobs, query, sortOrder, systemSize]);
+  const visibleJobs = useMemo(() => jobs, [jobs]);
+  const totalVisibleJobs = pagination?.total ?? visibleJobs.length;
 
   const handleSignOut = async () => {
     await logoutUser();
@@ -316,7 +258,7 @@ const InstallerJobsDashboard = () => {
         setJobActionMessage("Job saved successfully.");
       }
 
-      await loadJobState();
+      await Promise.all([loadJobState(), loadJobs(page)]);
       markInstallerSyncComplete("jobs");
     } catch (error) {
       setJobActionMessage(
@@ -329,12 +271,12 @@ const InstallerJobsDashboard = () => {
 
   const pageTitle =
     activeTab === "board"
-      ? `Available Jobs (${visibleJobs.length})`
+      ? `Available Jobs (${totalVisibleJobs})`
       : activeTab === "applications"
-        ? `My Applications (${visibleJobs.length})`
+        ? `My Applications (${totalVisibleJobs})`
         : activeTab === "saved"
-          ? `Saved Jobs (${visibleJobs.length})`
-          : "Completed Jobs";
+          ? `Saved Jobs (${totalVisibleJobs})`
+          : `Completed Jobs (${totalVisibleJobs})`;
 
   return (
     <div className="min-h-screen bg-white">
@@ -643,10 +585,6 @@ const InstallerJobsDashboard = () => {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading installer jobs...
               </div>
-            ) : activeTab === "completed" ? (
-              <div className="mt-6 rounded-2xl border border-[#DCE1E7] bg-white p-8 text-center text-sm text-[#6B7280]">
-                Completed installations are now surfaced in your Projects settings tab.
-              </div>
             ) : (
               <>
                 <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -733,34 +671,14 @@ const InstallerJobsDashboard = () => {
                   ) : null}
                 </div>
 
-                {pagination && pagination.totalPages > 1 ? (
-                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#E5E9EF] pt-4 text-sm text-[#667085]">
-                    <p>
-                      Page {pagination.page} of {pagination.totalPages}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                        disabled={pagination.page <= 1}
-                        className="rounded-lg border border-[#D0D5DD] px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPage((current) =>
-                            pagination.totalPages ? Math.min(current + 1, pagination.totalPages) : current + 1,
-                          )
-                        }
-                        disabled={pagination.page >= pagination.totalPages}
-                        className="rounded-lg border border-[#D0D5DD] px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                {pagination && visibleJobs.length > 0 ? (
+                  <PaginationControls
+                    className="mt-6"
+                    page={pagination.page}
+                    totalPages={pagination.totalPages}
+                    totalItems={pagination.total}
+                    onPageChange={setPage}
+                  />
                 ) : null}
               </>
             )}

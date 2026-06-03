@@ -28,6 +28,26 @@ type PaginationQuery = {
   limit?: number;
 };
 
+type InstallerJobsQuery = PaginationQuery & {
+  search?: string;
+  tab?: "board" | "applications" | "saved" | "completed";
+  sort?: "newest" | "oldest";
+  category?:
+    | "all"
+    | "full_installation"
+    | "maintenance"
+    | "repairs"
+    | "audits"
+    | "battery";
+  systemSize?: "all" | "small" | "medium" | "commercial";
+};
+
+type InstallerPayoutsQuery = PaginationQuery & {
+  status?: "Pending" | "Approved" | "Declined" | "All";
+};
+
+const DEFAULT_PAGE_SIZE = 20;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -467,10 +487,13 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return query ? `?${query}` : "";
 }
 
-export function listInstallerJobs(params: PaginationQuery = {}) {
-  return appGet<InstallerJobListApiResponse>(`/api/v1/installers/jobs${buildQuery(params)}`).then(
-    normalizeInstallerJobListResponse,
-  );
+export function listInstallerJobs(params: InstallerJobsQuery = {}) {
+  return appGet<InstallerJobListApiResponse>(
+    `/api/v1/installers/jobs${buildQuery({
+      ...params,
+      limit: params.limit ?? DEFAULT_PAGE_SIZE,
+    })}`,
+  ).then(normalizeInstallerJobListResponse);
 }
 
 export function getInstallerJobState() {
@@ -578,7 +601,10 @@ export function updateInstallerProfile(payload: UpdateInstallerProfilePayload) {
 
 export function getInstallerProjects(params: PaginationQuery = {}) {
   return appGet<InstallerProjectListApiResponse>(
-    `/api/v1/installers/projects${buildQuery(params)}`,
+    `/api/v1/installers/projects${buildQuery({
+      ...params,
+      limit: params.limit ?? DEFAULT_PAGE_SIZE,
+    })}`,
   );
 }
 
@@ -603,8 +629,11 @@ export function deleteInstallerPaymentMethod(id: string) {
   });
 }
 
-export function getInstallerPayouts(params: PaginationQuery = {}) {
+export function getInstallerPayouts(params: InstallerPayoutsQuery = {}) {
   return appGet<InstallerPayoutListApiResponse>(
-    `/api/v1/installers/payouts${buildQuery(params)}`,
+    `/api/v1/installers/payouts${buildQuery({
+      ...params,
+      limit: params.limit ?? DEFAULT_PAGE_SIZE,
+    })}`,
   );
 }

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Loader2, UploadCloud, X } from "lucide-react";
 import { LogoFull } from "@/components/features/icons/Logo";
 import { Field, FieldLabel } from "@/components/ui/field";
+import GradientCheckbox from "@/components/ui/gradient-checkbox";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGeneralStore } from "@/store/GeneralStore";
@@ -652,23 +653,20 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
                           </div>
                         </div>
 
-                        <label className="flex items-center gap-3 text-base font-medium text-[#3E3F43]">
-                          <input
-                            type="checkbox"
-                            className="h-5 w-5 rounded-md border-[#E2E8F0] text-[#16A34A] focus:ring-[#16A34A]/30"
-                            checked={state.profile.notifyOnNewJobs}
-                            onChange={(event) =>
-                              updateState((previous) => ({
-                                ...previous,
-                                profile: {
-                                  ...previous.profile,
-                                  notifyOnNewJobs: event.target.checked,
-                                },
-                              }))
-                            }
-                          />
-                          Send me notifications when new jobs are available in my region.
-                        </label>
+                        <GradientCheckbox
+                          checked={state.profile.notifyOnNewJobs}
+                          onChange={(event) =>
+                            updateState((previous) => ({
+                              ...previous,
+                              profile: {
+                                ...previous.profile,
+                                notifyOnNewJobs: event.target.checked,
+                              },
+                            }))
+                          }
+                          label="Send me notifications when new jobs are available in my region."
+                          labelClassName="text-base font-medium text-[#3E3F43]"
+                        />
                       </div>
                     </>
                   ) : null}
