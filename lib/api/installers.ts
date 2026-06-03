@@ -487,13 +487,17 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return query ? `?${query}` : "";
 }
 
+export function buildInstallerJobsPath(params: InstallerJobsQuery = {}) {
+  return `/api/v1/installers/jobs${buildQuery({
+    ...params,
+    limit: params.limit ?? DEFAULT_PAGE_SIZE,
+  })}`;
+}
+
 export function listInstallerJobs(params: InstallerJobsQuery = {}) {
-  return appGet<InstallerJobListApiResponse>(
-    `/api/v1/installers/jobs${buildQuery({
-      ...params,
-      limit: params.limit ?? DEFAULT_PAGE_SIZE,
-    })}`,
-  ).then(normalizeInstallerJobListResponse);
+  return appGet<InstallerJobListApiResponse>(buildInstallerJobsPath(params)).then(
+    normalizeInstallerJobListResponse,
+  );
 }
 
 export function getInstallerJobState() {
@@ -566,9 +570,9 @@ function buildInstallerOnboardingFormData(payload: SubmitInstallerOnboardingPayl
         : ""),
   };
 
-  formData.append("Profile", JSON.stringify(profile));
-  formData.append("ServiceAreas", JSON.stringify(payload.serviceAreas));
-  formData.append("Verification", JSON.stringify(verification));
+  formData.append("profile", JSON.stringify(profile));
+  formData.append("serviceAreas", JSON.stringify(payload.serviceAreas));
+  formData.append("verification", JSON.stringify(verification));
 
   if (payload.verification.id_file) {
     formData.append("id_file", payload.verification.id_file);

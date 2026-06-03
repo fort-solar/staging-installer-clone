@@ -1,6 +1,12 @@
 import {
+  applyToInstallerJob,
+  buildInstallerJobsPath,
   normalizeInstallerJobRecord,
+  reportInstallerJobIssue,
+  saveInstallerJob,
+  startInstallerJob,
   submitInstallerOnboarding,
+  unsaveInstallerJob,
 } from "@/lib/api/installers";
 
 describe("normalizeInstallerJobRecord", () => {
@@ -162,7 +168,7 @@ describe("submitInstallerOnboarding", () => {
       expect(body).toBeInstanceOf(FormData);
 
       const formData = body as FormData;
-      expect(JSON.parse(String(formData.get("Profile")))).toEqual({
+      expect(JSON.parse(String(formData.get("profile")))).toEqual({
         name: "Installer Example",
         primaryLocation: "Lagos",
         location: "Lagos",
@@ -171,18 +177,140 @@ describe("submitInstallerOnboarding", () => {
         specializations: ["Residential"],
         notifyOnNewJobs: true,
       });
-      expect(JSON.parse(String(formData.get("ServiceAreas")))).toEqual([
+      expect(JSON.parse(String(formData.get("serviceAreas")))).toEqual([
         "Lagos",
         "Ogun",
       ]);
-      expect(JSON.parse(String(formData.get("Verification")))).toEqual({
+      expect(JSON.parse(String(formData.get("verification")))).toEqual({
         idFileName: "installer-id.pdf",
         certificateFileName: "nabcep.png",
       });
       expect(formData.get("id_file")).toBe(idFile);
       expect(formData.get("certificate_file")).toBe(certificateFile);
-      expect(formData.get("profile")).toBeNull();
-      expect(formData.get("serviceAreas")).toBeNull();
+      expect(formData.get("Profile")).toBeNull();
+      expect(formData.get("ServiceAreas")).toBeNull();
+      expect(formData.get("Verification")).toBeNull();
+    } finally {
+      Object.defineProperty(global, "fetch", {
+        configurable: true,
+        writable: true,
+        value: originalFetch,
+      });
+    }
+  });
+});
+
+describe("installer job request helpers", () => {
+  it("builds installer job requests with the active board filters", () => {
+    expect(
+      buildInstallerJobsPath({
+        page: 2,
+        search: "lagos",
+        tab: "saved",
+        sort: "oldest",
+        category: "maintenance",
+        systemSize: "commercial",
+      }),
+    ).toBe(
+      "/api/v1/installers/jobs?page=2&search=lagos&tab=saved&sort=oldest&category=maintenance&systemSize=commercial&limit=20",
+    );
+  });
+});
+
+describe("installer job mutations", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("sends apply, save, start, and issue-report payloads to the correct endpoints", async () => {
+    const originalFetch = global.fetch;
+    const responsePayload = {
+      success: true,
+      message: "OK",
+    };
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === "content-type" ? "application/json" : null,
+      },
+      json: async () => responsePayload,
+      text: async () => JSON.stringify(responsePayload),
+    });
+    Object.defineProperty(global, "fetch", {
+      configurable: true,
+      writable: true,
+      value: fetchMock,
+    });
+
+    try {
+      await applyToInstallerJob("job-1", {
+        jobId: "job-1",
+        proposal: "I can deliver this install in 5 days.",
+        proposedBudget: 250000,
+      });
+      await saveInstallerJob("job-1", { jobId: "job-1" });
+      await unsaveInstallerJob("job-1");
+      await startInstallerJob("job-1", { jobId: "job-1" });
+      await reportInstallerJobIssue("job-1", {
+        jobId: "job-1",
+        description: "Customer phone number is unreachable.",
+        metadata: {
+          reportedFrom: "installer-portal",
+        },
+      });
+
+      expect(fetchMock.mock.calls).toEqual([
+        [
+          "/api/proxy/api/v1/installers/jobs/job-1/apply",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({
+              jobId: "job-1",
+              proposal: "I can deliver this install in 5 days.",
+              proposedBudget: 250000,
+            }),
+          }),
+        ],
+        [
+          "/api/proxy/api/v1/installers/jobs/job-1/saved",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({
+              jobId: "job-1",
+            }),
+          }),
+        ],
+        [
+          "/api/proxy/api/v1/installers/jobs/job-1/saved",
+          expect.objectContaining({
+            method: "DELETE",
+          }),
+        ],
+        [
+          "/api/proxy/api/v1/installers/jobs/job-1/start",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({
+              jobId: "job-1",
+            }),
+          }),
+        ],
+        [
+          "/api/proxy/api/v1/installers/jobs/job-1/issues",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({
+              jobId: "job-1",
+              description: "Customer phone number is unreachable.",
+              metadata: {
+                reportedFrom: "installer-portal",
+              },
+            }),
+          }),
+        ],
+      ]);
     } finally {
       Object.defineProperty(global, "fetch", {
         configurable: true,

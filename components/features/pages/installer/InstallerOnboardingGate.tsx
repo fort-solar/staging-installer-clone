@@ -31,7 +31,7 @@ const SPECIALIZATIONS = [
   "Energy Audits",
 ];
 
-type OnboardingFormState = {
+export type OnboardingFormState = {
   currentStep: 1 | 2 | 3;
   completed: boolean;
   profile: {
@@ -129,7 +129,7 @@ function extractVerificationDocumentName(value: unknown) {
   );
 }
 
-function isAcceptedVerificationFile(file: File) {
+export function isAcceptedVerificationFile(file: File) {
   const normalizedType = file.type.trim().toLowerCase();
   const normalizedName = file.name.trim().toLowerCase();
 
@@ -138,6 +138,19 @@ function isAcceptedVerificationFile(file: File) {
     normalizedType === "application/pdf" ||
     /\.(pdf|png|jpe?g|webp|gif|svg)$/.test(normalizedName)
   );
+}
+
+export function getOnboardingValidationState(state: OnboardingFormState) {
+  return {
+    canProceedStep1:
+      state.profile.name.trim().length > 0 &&
+      state.profile.primaryLocation.trim().length > 0 &&
+      state.profile.specializations.length > 0,
+    canProceedStep2:
+      state.verification.idFileName.trim().length > 0 &&
+      state.verification.certificateFileName.trim().length > 0,
+    canSubmitStep3: state.serviceAreas.length > 0,
+  };
 }
 
 function addUniqueValue(list: string[], value: string) {
@@ -362,14 +375,8 @@ const InstallerOnboardingGate = ({ children }: { children: React.ReactNode }) =>
     );
   }
 
-  const canProceedStep1 =
-    state.profile.name.trim().length > 0 &&
-    state.profile.primaryLocation.trim().length > 0 &&
-    state.profile.specializations.length > 0;
-  const canProceedStep2 =
-    state.verification.idFileName.trim().length > 0 &&
-    state.verification.certificateFileName.trim().length > 0;
-  const canSubmitStep3 = state.serviceAreas.length > 0;
+  const { canProceedStep1, canProceedStep2, canSubmitStep3 } =
+    getOnboardingValidationState(state);
 
   const updateState = (updater: (prev: OnboardingFormState) => OnboardingFormState) => {
     setState((previous) => (previous ? updater(previous) : previous));
