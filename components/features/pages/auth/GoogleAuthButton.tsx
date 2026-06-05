@@ -14,6 +14,9 @@ type GoogleAuthButtonProps = {
 >;
 
 const DEFAULT_BUTTON_WIDTH = 360;
+const GOOGLE_MAX_BUTTON_WIDTH = 400;
+const GOOGLE_BUTTON_HEIGHT = 40;
+const CUSTOM_BUTTON_HEIGHT = 48;
 
 const GoogleAuthButton = ({
   className,
@@ -22,6 +25,9 @@ const GoogleAuthButton = ({
 }: GoogleAuthButtonProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [buttonWidth, setButtonWidth] = useState(DEFAULT_BUTTON_WIDTH);
+  const googleButtonWidth = Math.min(buttonWidth, GOOGLE_MAX_BUTTON_WIDTH);
+  const scaleX = buttonWidth / googleButtonWidth;
+  const scaleY = CUSTOM_BUTTON_HEIGHT / GOOGLE_BUTTON_HEIGHT;
 
   useEffect(() => {
     const node = containerRef.current;
@@ -47,7 +53,7 @@ const GoogleAuthButton = ({
     <div
       ref={containerRef}
       className={cn(
-        "relative w-full rounded-2xl focus-within:ring-2 focus-within:ring-[#16A34A]/20",
+        "relative h-12 w-full overflow-hidden rounded-2xl focus-within:ring-2 focus-within:ring-[#16A34A]/20",
         className,
       )}
     >
@@ -64,10 +70,14 @@ const GoogleAuthButton = ({
         shape="rectangular"
         theme="outline"
         size="large"
-        width={buttonWidth}
+        width={googleButtonWidth}
         containerProps={{
-          className:
-            "absolute inset-x-0 top-0 z-10 origin-top scale-y-[1.2] opacity-0 [&>div]:!w-full [&_iframe]:!w-full",
+          className: "absolute left-0 top-0 z-10 opacity-0",
+          style: {
+            width: googleButtonWidth,
+            transform: `scale(${scaleX}, ${scaleY})`,
+            transformOrigin: "top left",
+          },
         }}
       />
     </div>
