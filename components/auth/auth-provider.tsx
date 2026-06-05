@@ -13,7 +13,7 @@ import {
 import { APP_SESSION_EXPIRED_EVENT, appGet, isAppSessionExpiredError } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/api/errors";
 import { createSessionSnapshotFromProfile } from "@/lib/auth/session";
-import { clearClientAuthState, syncClientAuthState } from "@/lib/localAuth";
+import { clearClientAuthState, logoutUser, syncClientAuthState } from "@/lib/localAuth";
 import type { AuthMeApiResponse, PortalRole, SessionSnapshot } from "@/types/api.types";
 
 type AuthContextValue = {
@@ -23,6 +23,7 @@ type AuthContextValue = {
   portal: PortalRole;
   refreshSession: () => Promise<SessionSnapshot | null>;
   clearSession: () => void;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -44,6 +45,13 @@ export function AuthProvider({
     hasHandledSessionExpiryRef.current = false;
     setSession(null);
     clearClientAuthState();
+  }, []);
+
+  const signOut = useCallback(async () => {
+    hasHandledSessionExpiryRef.current = false;
+    setSession(null);
+    clearClientAuthState();
+    await logoutUser().catch(() => undefined);
   }, []);
 
   const applySessionFromProfile = useCallback(
@@ -153,8 +161,9 @@ export function AuthProvider({
       portal,
       refreshSession,
       clearSession,
+      signOut,
     }),
-    [clearSession, isRefreshing, portal, refreshSession, session],
+    [clearSession, isRefreshing, portal, refreshSession, session, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

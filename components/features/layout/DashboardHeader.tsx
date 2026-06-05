@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, HelpCircle, LogOut, Settings, List, InspectionPanel  } from "lucide-react";
 import { OrdersIcon } from "../icons/OrdersIcon";
 import { useAuth } from "@/components/auth/auth-provider";
-import { logoutUser } from "@/lib/localAuth";
 
 const DashboardHeader = ({
   query,
@@ -21,7 +20,7 @@ const DashboardHeader = ({
   onQueryChange: (value: string) => void;
 }) => {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, signOut } = useAuth();
   const isInstallerLoggedIn = Boolean(session);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const toggleCategorySidebar = useGeneralStore((state) => state.toggleCategorySidebar);
@@ -31,12 +30,9 @@ const DashboardHeader = ({
   const userFirstName = session?.user.fullName?.split(" ")[0] ?? "Installer";
   const userEmail = session?.user.email ?? "installer@email.com";
 
-  const signOut = async () => {
-    try {
-      await logoutUser();
-    } finally {
-      router.replace("/login");
-    }
+  const handleSignOut = () => {
+    void signOut();
+    router.replace("/login");
   };
 
   return (
@@ -271,7 +267,7 @@ const DashboardHeader = ({
             <div className="mt-4 border-t border-[#D8E0E8] pt-3">
               <button
                 type="button"
-                onClick={signOut}
+                onClick={handleSignOut}
                 className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[#F35B5B] hover:bg-[#FFF5F5]"
               >
                 <LogOut className="h-5 w-5" />

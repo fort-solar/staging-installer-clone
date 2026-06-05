@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { LogoFull } from "@/components/features/icons/Logo";
-import { logoutUser } from "@/lib/localAuth";
 import {
   getInstallerJobState,
   listInstallerJobs,
@@ -150,7 +149,7 @@ function useDebouncedValue<T>(value: T, delayMs = 300) {
 
 const InstallerJobsDashboard = () => {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<JobTab>("board");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category>("all");
@@ -239,12 +238,9 @@ const InstallerJobsDashboard = () => {
   const visibleJobs = useMemo(() => jobs, [jobs]);
   const totalVisibleJobs = pagination?.total ?? visibleJobs.length;
 
-  const handleSignOut = async () => {
-    try {
-      await logoutUser();
-    } finally {
-      router.replace("/login");
-    }
+  const handleSignOut = () => {
+    void signOut();
+    router.replace("/login");
   };
 
   async function toggleSavedJob(jobId: string) {
