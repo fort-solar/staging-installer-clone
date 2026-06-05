@@ -240,8 +240,11 @@ const InstallerJobsDashboard = () => {
   const totalVisibleJobs = pagination?.total ?? visibleJobs.length;
 
   const handleSignOut = async () => {
-    await logoutUser();
-    router.push("/login");
+    try {
+      await logoutUser();
+    } finally {
+      router.replace("/login");
+    }
   };
 
   async function toggleSavedJob(jobId: string) {

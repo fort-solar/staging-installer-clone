@@ -32,8 +32,11 @@ const DashboardHeader = ({
   const userEmail = session?.user.email ?? "installer@email.com";
 
   const signOut = async () => {
-    await logoutUser();
-    router.push("/login");
+    try {
+      await logoutUser();
+    } finally {
+      router.replace("/login");
+    }
   };
 
   return (
