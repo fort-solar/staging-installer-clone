@@ -158,6 +158,7 @@ const SignupForm = () => {
         <AuthInput
           label="Full Name"
           placeholder="eg. John Doe"
+          required
           {...register("fullName", { required: "Full name is required" })}
           error={errors.fullName?.message}
         />
@@ -167,6 +168,7 @@ const SignupForm = () => {
           type="email"
           placeholder="example@email.com"
           autoComplete="email"
+          required
           {...register("email", { required: "Email is required" })}
           error={errors.email?.message}
         />
@@ -176,6 +178,7 @@ const SignupForm = () => {
           type="tel"
           placeholder="902 2367 890"
           autoComplete="tel"
+          required
           {...register("phone", { required: "Phone is required" })}
           error={errors.phone?.message}
         />
@@ -184,6 +187,7 @@ const SignupForm = () => {
           label="Address"
           placeholder="suite 5 ..."
           autoComplete="street-address"
+          required
           {...register("address", { required: "Address is required" })}
           error={errors.address?.message}
         />
@@ -192,6 +196,7 @@ const SignupForm = () => {
           label="Password"
           placeholder="••••••••••••••"
           autoComplete="new-password"
+          required
           {...register("password", {
             required: "Password is required",
             minLength: { value: 8, message: "Use at least 8 characters" },
@@ -203,6 +208,7 @@ const SignupForm = () => {
           label="Confirm Password"
           placeholder="••••••••••••••"
           autoComplete="new-password"
+          required
           {...register("confirmPassword", {
             required: "Please confirm your password",
             validate: (value) => value === passwordValue || "Passwords do not match",

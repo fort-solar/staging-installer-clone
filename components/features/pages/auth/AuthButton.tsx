@@ -19,7 +19,7 @@ const AuthButton = ({
       type="submit"
       disabled={isLoading || props.disabled}
       className={[
-        "h-14 mt-5 w-full rounded-2xl cursor-pointer bg-[linear-gradient(94.62deg,#2CB22C_-8.83%,#058A05_110.95%)] px-6",
+        "h-14 mt-5 w-full rounded-2xl cursor-pointer bg-[linear-gradient(94.62deg,#2CB22C_-8.83%,#048A05_110.95%)] px-6",
         "text-base font-semibold text-white shadow-sm transition hover:opacity-95",
         "disabled:cursor-not-allowed disabled:opacity-70",
         className ?? "",

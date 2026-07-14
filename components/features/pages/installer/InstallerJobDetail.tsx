@@ -28,6 +28,8 @@ import {
   saveInstallerJob,
   startInstallerJob,
   unsaveInstallerJob,
+  completeInstallerJob,
+  uploadInstallerInstallationPhoto,
 } from "@/lib/api/installers";
 import { useGeneralStore } from "@/store/GeneralStore";
 import type { InstallerJobRecord } from "@/types/api.types";
@@ -51,6 +53,11 @@ const InstallerJobDetail = ({ jobId }: { jobId: string }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isReportingIssue, setIsReportingIssue] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoType, setPhotoType] = useState<"before" | "during" | "after" | "completion">("before");
+  const [photoDescription, setPhotoDescription] = useState("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const loadJobDetails = useCallback(async () => {
     setIsLoading(true);
@@ -162,6 +169,59 @@ const InstallerJobDetail = ({ jobId }: { jobId: string }) => {
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function requestCompleteJob() {
+    setIsCompleting(true);
+    setMessage(null);
+
+    try {
+      await completeInstallerJob(activeJob.id, { jobId: activeJob.id });
+      markInstallerSyncComplete("jobs");
+      await loadJobDetails();
+      setMessage("Job marked as completed successfully.");
+    } catch (completeError) {
+      setMessage(
+        completeError instanceof Error ? completeError.message : "Unable to complete this job right now.",
+      );
+    } finally {
+      setIsCompleting(false);
+    }
+  }
+
+  async function handlePhotoUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!photoFile) {
+      setMessage("Please select a file to upload.");
+      return;
+    }
+    if (!activeJob.installation_id) {
+      setMessage("No active installation linked to this job.");
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", photoFile);
+      formData.append("photo_type", photoType);
+      if (photoDescription.trim()) {
+        formData.append("description", photoDescription.trim());
+      }
+
+      await uploadInstallerInstallationPhoto(activeJob.installation_id, formData);
+      setPhotoFile(null);
+      setPhotoDescription("");
+      setMessage("Photo uploaded successfully.");
+    } catch (uploadError) {
+      setMessage(
+        uploadError instanceof Error ? uploadError.message : "Unable to upload photo.",
+      );
+    } finally {
+      setIsUploadingPhoto(false);
     }
   }
 
@@ -395,15 +455,84 @@ const InstallerJobDetail = ({ jobId }: { jobId: string }) => {
                 Start the job when it has been assigned to you, or report issues directly to the
                 operations team.
               </p>
-              <Button
-                type="button"
-                onClick={() => void requestStartJob()}
-                disabled={isStarting}
-                className="mt-5 w-full rounded-xl bg-[#DDF1DD] px-8 py-2 text-lg font-medium text-[#1B8F1B] hover:bg-[#D3EBD3]"
-              >
-                {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Start Job
-              </Button>
+              
+              {activeJob.status === "assigned" || activeJob.status === "open" ? (
+                <Button
+                  type="button"
+                  onClick={() => void requestStartJob()}
+                  disabled={isStarting}
+                  className="mt-5 w-full rounded-xl bg-[#DDF1DD] px-8 py-2 text-lg font-medium text-[#1B8F1B] hover:bg-[#D3EBD3]"
+                >
+                  {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Start Job
+                </Button>
+              ) : activeJob.status === "in-progress" || activeJob.status === "in_progress" ? (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() => void requestCompleteJob()}
+                    disabled={isCompleting}
+                    className="mt-5 w-full rounded-xl bg-[#048A05] hover:bg-[#036B04] px-8 py-2 text-lg font-medium text-white"
+                  >
+                    {isCompleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Complete Installation
+                  </Button>
+
+                  <form onSubmit={handlePhotoUpload} className="mt-6 border-t border-gray-200 pt-4 space-y-4 text-left">
+                    <p className="text-sm font-semibold text-[#1F2937]">Upload Proof of Work</p>
+                    <label className="block space-y-1 text-xs font-medium text-[#344054]">
+                      <span>Photo Stage Category</span>
+                      <select
+                        value={photoType}
+                        onChange={(e: any) => setPhotoType(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-[#D0D5DD] px-2 text-xs outline-none"
+                      >
+                        <option value="before">Before Work Photo</option>
+                        <option value="during">During Work Photo</option>
+                        <option value="after">After Work Photo</option>
+                        <option value="completion">Completion Photo</option>
+                      </select>
+                    </label>
+
+                    <label className="block space-y-1 text-xs font-medium text-[#344054]">
+                      <span>Choose Image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                        className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                      />
+                    </label>
+
+                    <label className="block space-y-1 text-xs font-medium text-[#344054]">
+                      <span>Short Description</span>
+                      <Input
+                        value={photoDescription}
+                        onChange={(e) => setPhotoDescription(e.target.value)}
+                        placeholder="e.g. Inverter mounted on wall"
+                        className="h-8 rounded-lg text-xs"
+                      />
+                    </label>
+
+                    <Button
+                      type="submit"
+                      disabled={isUploadingPhoto || !photoFile}
+                      className="w-full text-xs bg-gray-900 text-white hover:bg-black rounded-lg py-1.5"
+                    >
+                      {isUploadingPhoto ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                      Upload Photo
+                    </Button>
+                  </form>
+                </>
+              ) : activeJob.status === "completed" ? (
+                <div className="mt-5 p-3 rounded-lg bg-green-50 border border-green-200 text-xs text-[#027A48] font-medium text-center">
+                  Job Completed. Waiting for customer approval.
+                </div>
+              ) : (
+                <div className="mt-5 p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-500 font-medium text-center">
+                  Status: {activeJob.status}
+                </div>
+              )}
 
               <Dialog open={isIssueOpen} onOpenChange={setIsIssueOpen}>
                 <DialogTrigger asChild>

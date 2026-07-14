@@ -6,7 +6,7 @@ type AuthInputProps = React.ComponentPropsWithoutRef<"input"> & {
   error?: string;
 };
 
-const AuthInput = ({ label, error, id, className, ...props }: AuthInputProps) => {
+const AuthInput = ({ label, error, id, className, required, ...props }: AuthInputProps) => {
   const inputId =
     id ?? props.name ?? (label ? label.replace(/\s+/g, "-").toLowerCase() : undefined);
 
@@ -15,10 +15,12 @@ const AuthInput = ({ label, error, id, className, ...props }: AuthInputProps) =>
       {label ? (
         <label htmlFor={inputId} className="text-sm font-medium text-[#111827]">
           {label}
+          {required ? <span className="text-red-500 ml-1">*</span> : null}
         </label>
       ) : null}
       <Input
         id={inputId}
+        required={required}
         aria-invalid={Boolean(error)}
         className={[
           "h-14 rounded-2xl border border-transparent bg-[#F3F4F6] px-4 text-base text-[#111827]",

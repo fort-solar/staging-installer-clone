@@ -641,3 +641,17 @@ export function getInstallerPayouts(params: InstallerPayoutsQuery = {}) {
     })}`,
   );
 }
+
+export function completeInstallerJob(id: string, payload: { jobId: string }) {
+  return appRequest<ApiSuccessResponse>(`/api/v1/installers/jobs/${id}/complete`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function uploadInstallerInstallationPhoto(id: string, formData: FormData) {
+  return appRequest<ApiSuccessResponse>(`/api/v1/installers/installations/${id}/photos`, {
+    method: "POST",
+    body: formData,
+  });
+}

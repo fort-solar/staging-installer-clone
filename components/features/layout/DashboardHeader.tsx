@@ -44,7 +44,7 @@ const DashboardHeader = ({
           </Link>
           <Button
             onClick={toggleCategorySidebar}
-            className="block lg:hidden bg-[#058A05] hover:bg-[#047804] text-white rounded-md h-9 px-4 text-xs gap-2"
+            className="block lg:hidden bg-[#048A05] hover:bg-[#047804] text-white rounded-md h-9 px-4 text-xs gap-2"
           >
             <span className="grid gap-1">
               <span className="h-0.5 w-4 bg-white rounded-full" />
@@ -68,7 +68,7 @@ const DashboardHeader = ({
         <div className="flex-1 flex gap-10 lg:gap-2 items-center justify-end lg:justify-start">
           <Button
             onClick={toggleCategorySidebar}
-            className="bg-[#058A05] hidden lg:flex hover:bg-[#047804] text-white rounded-md h-9 px-4 text-xs gap-2"
+            className="bg-[#048A05] hidden lg:flex hover:bg-[#047804] text-white rounded-md h-9 px-4 text-xs gap-2"
           >
             <span className="grid gap-1">
               <span className="h-0.5 w-4 bg-white rounded-full" />
