@@ -381,6 +381,66 @@ const InstallerJobDetail = ({ jobId }: { jobId: string }) => {
               <p className="mt-2 text-lg text-[#3E454F]">{activeJob.description}</p>
             </section>
 
+            <section className="rounded-2xl border border-[#D0D5DD] bg-[#F9FAFB] p-6 space-y-4 text-[#1F2937]">
+              <h4 className="text-lg font-bold text-[#111827]">System Specifications</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm lg:text-base">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">Inverter Size</p>
+                  <p className="font-semibold text-gray-800 mt-1">{activeJob.inverter_size || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">Panel Size & Count</p>
+                  <p className="font-semibold text-gray-800 mt-1">
+                    {activeJob.panel_size || "—"} ({activeJob.number_of_panels ?? 0} panels)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">Battery Type</p>
+                  <p className="font-semibold text-gray-800 mt-1">{activeJob.battery_type || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">Battery Capacity</p>
+                  <p className="font-semibold text-gray-800 mt-1">{activeJob.battery_energy || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">City</p>
+                  <p className="font-semibold text-gray-800 mt-1">{activeJob.city || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">State & Country</p>
+                  <p className="font-semibold text-gray-800 mt-1">
+                    {[activeJob.state, activeJob.country].filter(Boolean).join(", ") || "—"}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {activeJob.customer_name && (
+              <section className="rounded-2xl border border-[#D0D5DD] bg-[#EDF7ED] p-6 space-y-4 text-[#1F2937]">
+                <h4 className="text-lg font-bold text-[#1B5E20] flex items-center gap-2">
+                  <span>✓</span> Customer Contact Details (Approved Installer Only)
+                </h4>
+                <div className="grid grid-cols-2 gap-6 text-sm lg:text-base">
+                  <div>
+                    <p className="text-xs text-[#2E7D32] uppercase tracking-wider">Customer Name</p>
+                    <p className="font-semibold text-gray-800 mt-1">{activeJob.customer_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#2E7D32] uppercase tracking-wider">Customer Phone</p>
+                    <p className="font-semibold text-gray-800 mt-1">{activeJob.customer_phone || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#2E7D32] uppercase tracking-wider">Customer Email</p>
+                    <p className="font-semibold text-gray-800 mt-1">{activeJob.customer_email || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#2E7D32] uppercase tracking-wider">Installation Address</p>
+                    <p className="font-semibold text-gray-800 mt-1">{activeJob.customer_address || "—"}</p>
+                  </div>
+                </div>
+              </section>
+            )}
+
             <section>
               <h3 className="text-xl font-semibold text-[#171A1F] lg:text-2xl">Scope of Work</h3>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-lg text-[#3E454F]">

@@ -155,6 +155,12 @@ export type InstallerJobApiRecord = {
   requirements?: string[];
   components?: string[];
   siteConditions?: string[];
+  inverter_size?: string | null;
+  panel_size?: string | null;
+  battery_type?: string | null;
+  battery_energy?: string | null;
+  number_of_panels?: number | null;
+  customer_address?: string | null;
 };
 
 export type InstallerJobRecord = {
@@ -197,6 +203,12 @@ export type InstallerJobRecord = {
   requirements: string[];
   components: string[];
   siteConditions: string[];
+  inverter_size?: string | null;
+  panel_size?: string | null;
+  battery_type?: string | null;
+  battery_energy?: string | null;
+  number_of_panels?: number | null;
+  customer_address?: string | null;
 };
 
 export type InstallerJobListApiResponse = ApiCollectionResponse<InstallerJobApiRecord>;
