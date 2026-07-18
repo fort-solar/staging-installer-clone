@@ -81,7 +81,8 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.classList.toggle('dark',localStorage.getItem('fortsolar:appearance')==='dark')}catch(e){}` }} /></head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

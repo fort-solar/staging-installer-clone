@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, HelpCircle, LogOut, Settings, List, InspectionPanel  } from "lucide-react";
 import { OrdersIcon } from "../icons/OrdersIcon";
 import { useAuth } from "@/components/auth/auth-provider";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const DashboardHeader = ({
   query,
@@ -91,6 +92,7 @@ const DashboardHeader = ({
           </div>
 
           <div className="flex lg:hidden items-center gap-6 justify-end text-sm text-[#3B3B3B]">
+            <ThemeToggle />
             <Link
               href="/installer/settings/projects#section"
               className="relative flex h-9 w-9 items-center justify-center rounded-md"
@@ -137,6 +139,7 @@ const DashboardHeader = ({
         </div>
 
         <div className="hidden lg:flex items-center gap-4 justify-end text-sm text-[#3B3B3B]">
+          <ThemeToggle />
           <Link href="/installer/settings/projects" className="flex items-center gap-2 text-xs text-[#3B3B3B]">
             <OrdersIcon className="text-[#3B3B3B]/60" />
             <span className="hidden lg:block">
