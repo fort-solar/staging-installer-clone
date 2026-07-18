@@ -516,7 +516,7 @@ const InstallerJobDetail = ({ jobId }: { jobId: string }) => {
                 operations team.
               </p>
               
-              {activeJob.status === "assigned" || activeJob.status === "open" ? (
+              {isApplied && (activeJob.status === "assigned" || activeJob.status === "open") ? (
                 <Button
                   type="button"
                   onClick={() => void requestStartJob()}
