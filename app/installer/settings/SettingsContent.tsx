@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronDown, EllipsisVertical, Info, MapPin, Plus, Star, Tra
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PaginationControls from "@/components/ui/pagination-controls";
+import { NigeriaLocationFields } from "@/components/ui/nigeria-location-fields";
 import { SmartTabsInstaller, type TabKeyInstaller } from "@/lib/smartTabs";
 import { BankIcon } from "@/components/features/icons/BankIcon";
 import { HistoryIcon } from "@/components/features/icons/HistoryIcon";
@@ -34,6 +35,8 @@ type InstallerProfileState = {
   phone: string;
   address: string;
   location: string;
+  state: string;
+  city: string;
   experienceLevel: string;
   additionalInfo: string;
   skills: string[];
@@ -192,6 +195,8 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
     phone: sessionPhone,
     address: sessionAddress,
     location: "",
+    state: "",
+    city: "",
     experienceLevel: "",
     additionalInfo: "",
     skills: [],
@@ -240,6 +245,8 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
           phone: session.user.phone ?? "",
           address: session.user.address ?? "",
           location: profilePayload.data.primaryLocation || profilePayload.data.location || "",
+          state: "",
+          city: profilePayload.data.primaryLocation || profilePayload.data.location || "",
           experienceLevel: profilePayload.data.experienceLevel || "",
           additionalInfo: profilePayload.data.additionalInfo || "",
           skills: profilePayload.data.skills,
@@ -407,7 +414,7 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
         }),
         updateInstallerProfile({
           email: profile.email,
-          location: profile.location,
+          location: [profile.city, profile.state, "Nigeria"].filter(Boolean).join(", ") || profile.location,
           experienceLevel: profile.experienceLevel,
           additionalInfo: profile.additionalInfo,
           skills: profile.skills,
@@ -678,6 +685,10 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
                         className="h-12 rounded-xl border-[#E3E3E3] bg-white text-base"
                       />
                     </label>
+
+                    <div className="grid gap-4 lg:col-span-2 lg:grid-cols-3">
+                      <NigeriaLocationFields state={profile.state} city={profile.city} onStateChange={(state) => setProfile((prev) => ({ ...prev, state, city: "" }))} onCityChange={(city) => setProfile((prev) => ({ ...prev, city }))} />
+                    </div>
 
                     <label className="space-y-2 text-sm font-medium text-[#202020]">
                       <span className="text-[#5B5B5B]">Experience Level</span>
