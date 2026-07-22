@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { ComboboxField } from "@/components/ui/combobox-field";
 
 type NigeriaLocationFieldsProps = {
   state: string;
@@ -16,7 +17,6 @@ export function NigeriaLocationFields({
   onStateChange,
   onCityChange,
 }: NigeriaLocationFieldsProps) {
-  const id = useId();
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
 
@@ -48,34 +48,8 @@ export function NigeriaLocationFields({
   return (
     <>
       <Input value="Nigeria" readOnly aria-label="Country" className="h-12 rounded-xl bg-muted" />
-      <>
-        <Input
-          list={`${id}-states`}
-          value={state}
-          onChange={(event) => {
-            onStateChange(event.target.value);
-            onCityChange("");
-          }}
-          placeholder="Search state"
-          className="h-12 rounded-xl"
-        />
-        <datalist id={`${id}-states`}>
-          {states.map((item) => <option key={item} value={item} />)}
-        </datalist>
-      </>
-      <>
-        <Input
-          list={`${id}-cities`}
-          value={city}
-          onChange={(event) => onCityChange(event.target.value)}
-          disabled={!state}
-          placeholder={state ? "Search city" : "Select a state first"}
-          className="h-12 rounded-xl"
-        />
-        <datalist id={`${id}-cities`}>
-          {visibleCities.map((item) => <option key={item} value={item} />)}
-        </datalist>
-      </>
+      <ComboboxField value={state} onValueChange={(value) => { onStateChange(value); onCityChange(""); }} options={states.map((value) => ({ value, label: value }))} placeholder="Search state" className="h-12 rounded-xl" />
+      <ComboboxField value={city} onValueChange={onCityChange} options={visibleCities.map((value) => ({ value, label: value }))} disabled={!state} placeholder={state ? "Search city" : "Select a state first"} className="h-12 rounded-xl" />
     </>
   );
 }
