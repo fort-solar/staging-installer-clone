@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ChevronDown, EllipsisVertical, Info, MapPin, Plus, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ComboboxField } from "@/components/ui/combobox-field";
 import PaginationControls from "@/components/ui/pagination-controls";
 import { NigeriaLocationFields } from "@/components/ui/nigeria-location-fields";
 import { SmartTabsInstaller, type TabKeyInstaller } from "@/lib/smartTabs";
@@ -692,18 +693,13 @@ const SettingsContent = ({ page }: { page: TabKeyInstaller }) => {
 
                     <label className="space-y-2 text-sm font-medium text-[#202020]">
                       <span className="text-[#5B5B5B]">Experience Level</span>
-                      <select
+                      <ComboboxField
                         value={profile.experienceLevel}
-                        onChange={(e) => setProfile((prev) => ({ ...prev, experienceLevel: e.target.value }))}
+                        onValueChange={(value) => setProfile((prev) => ({ ...prev, experienceLevel: value }))}
+                        options={EXPERIENCE_LEVELS.map((value) => ({ value, label: value }))}
+                        placeholder="Select experience level"
                         className="h-12 w-full rounded-xl border border-[#E3E3E3] bg-white px-3 text-base outline-none"
-                      >
-                        <option value="">Select experience level</option>
-                        {EXPERIENCE_LEVELS.map((level) => (
-                          <option key={level} value={level}>
-                            {level}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
 
                     <label className="space-y-2 text-sm font-medium text-[#202020] lg:col-span-2">
