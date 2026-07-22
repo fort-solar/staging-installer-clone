@@ -12,6 +12,7 @@ import {
 import { CautionIcon } from "../../icons/CautionIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ComboboxField } from "@/components/ui/combobox-field";
 import {
   Dialog,
   DialogContent,
@@ -542,16 +543,12 @@ const InstallerJobDetail = ({ jobId }: { jobId: string }) => {
                     <p className="text-sm font-semibold text-[#1F2937]">Upload Proof of Work</p>
                     <label className="block space-y-1 text-xs font-medium text-[#344054]">
                       <span>Photo Stage Category</span>
-                      <select
+                      <ComboboxField
                         value={photoType}
-                        onChange={(e: any) => setPhotoType(e.target.value)}
+                        onValueChange={(value) => setPhotoType(value as typeof photoType)}
+                        options={[{ value: "before", label: "Before Work Photo" }, { value: "during", label: "During Work Photo" }, { value: "after", label: "After Work Photo" }, { value: "completion", label: "Completion Photo" }]}
                         className="w-full h-9 rounded-lg border border-[#D0D5DD] px-2 text-xs outline-none"
-                      >
-                        <option value="before">Before Work Photo</option>
-                        <option value="during">During Work Photo</option>
-                        <option value="after">After Work Photo</option>
-                        <option value="completion">Completion Photo</option>
-                      </select>
+                      />
                     </label>
 
                     <label className="block space-y-1 text-xs font-medium text-[#344054]">
