@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@media (max-width: 1023px) {
+  body:has(nav[aria-label="Installer navigation"]) {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

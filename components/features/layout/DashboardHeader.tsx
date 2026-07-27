@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { SearchIcon } from "../icons/SearchIcon";
 import Link from "next/link";
 import { useGeneralStore } from "@/store/GeneralStore";
-import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, HelpCircle, LogOut, Settings, List, InspectionPanel  } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { BriefcaseBusiness, ChevronDown, ChevronUp, CircleUserRound, CreditCard, HelpCircle, LogOut, Settings, List, InspectionPanel  } from "lucide-react";
 import { OrdersIcon } from "../icons/OrdersIcon";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -21,6 +21,7 @@ const DashboardHeader = ({
   onQueryChange: (value: string) => void;
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { session, signOut } = useAuth();
   const isInstallerLoggedIn = Boolean(session);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -45,13 +46,9 @@ const DashboardHeader = ({
           </Link>
           <Button
             onClick={toggleCategorySidebar}
-            className="block lg:hidden bg-[#048A05] hover:bg-[#047804] text-white rounded-md h-9 px-4 text-xs gap-2"
+            className="flex lg:hidden bg-[#048A05] hover:bg-[#047804] text-white rounded-md h-9 px-4 text-xs"
           >
-            <span className="grid gap-1">
-              <span className="h-0.5 w-4 bg-white rounded-full" />
-              <span className="h-0.5 w-4 bg-white rounded-full" />
-              <span className="h-0.5 w-4 bg-white rounded-full" />
-            </span>
+            Filters
           </Button>
         </div>
           <div className="lg:hidden block relative max-w-lg lg:max-w-xl w-full mr-10">
@@ -66,7 +63,7 @@ const DashboardHeader = ({
             />
           </div>
 
-        <div className="flex-1 flex gap-10 lg:gap-2 items-center justify-end lg:justify-start">
+        <div className="hidden flex-1 gap-2 items-center lg:flex lg:justify-start">
           <Button
             onClick={toggleCategorySidebar}
             className="bg-[#048A05] hidden lg:flex hover:bg-[#047804] text-white rounded-md h-9 px-4 text-xs gap-2"
@@ -91,51 +88,6 @@ const DashboardHeader = ({
             />
           </div>
 
-          <div className="flex lg:hidden items-center gap-6 justify-end text-sm text-[#3B3B3B]">
-            <ThemeToggle />
-            <Link
-              href="/installer/settings/projects#section"
-              className="relative flex h-9 w-9 items-center justify-center rounded-md"
-            >
-              <OrdersIcon className="text-[#3B3B3B]/60" />
-              <span className="sr-only">Projects</span>
-            </Link>
-            <Link
-              href="/installer/settings"
-              className="relative flex h-9 w-9 items-center justify-center rounded-md"
-            >
-              <Settings className="h-4 w-4 text-[#3B3B3B]/60" />
-              <span className="sr-only">Settings</span>
-            </Link>
-
-            {isInstallerLoggedIn ? (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-                  className="border p-1 rounded-md flex items-center gap-2"
-                >
-                  <div className="bg-[#EBFAEB] px-3 py-1 rounded-md">
-                    <p className="text-sm font-medium">{userInitial}</p>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-semibold line-clamp-1">{userFirstName}</p>
-                    <p className="text-[10px]">Installer</p>
-                  </div>
-                  {isInstallerLoggedIn && isProfileMenuOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                </button>
-              </div>
-            ) : (
-              <Link href="/login">
-                <Button
-                  variant="outline"
-                  className="rounded-lg cursor-pointer border-[#E4E9EC] px-3 py-2 lg:px-5 text-xs text-[#3B3B3B]"
-                >
-                  Sign In
-                </Button>
-              </Link>
-            )}
-          </div>
         </div>
 
         <div className="hidden lg:flex items-center gap-4 justify-end text-sm text-[#3B3B3B]">
@@ -188,6 +140,32 @@ const DashboardHeader = ({
           )}
         </div>
       </div>
+
+      <nav
+        aria-label="Installer navigation"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E2E8EC] bg-white/95 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
+      >
+        <div className="mx-auto grid max-w-lg grid-cols-4">
+          {[
+            { href: "/installer/dashboard", label: "Jobs", icon: BriefcaseBusiness, active: pathname.startsWith("/installer/dashboard") || pathname.startsWith("/installer/jobs") },
+            { href: "/installer/settings/projects#section", label: "Projects", icon: OrdersIcon, active: pathname.startsWith("/installer/settings/projects") },
+            { href: "/installer/settings/bills-and-payments#section", label: "Payments", icon: CreditCard, active: pathname.startsWith("/installer/settings/bills-and-payments") },
+            { href: isInstallerLoggedIn ? "/installer/settings/profile#section" : "/login", label: isInstallerLoggedIn ? "Profile" : "Sign in", icon: CircleUserRound, active: pathname.startsWith("/installer/settings/profile") || pathname === "/login" },
+          ].map(({ href, label, icon: Icon, active }) => (
+            <Link
+              key={label}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-colors ${
+                active ? "bg-[#EBFAEB] text-[#048A05]" : "text-[#66727A] hover:bg-[#F4F7F8] hover:text-[#30343A]"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="w-full truncate text-center">{label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
 
       {isInstallerLoggedIn && isProfileMenuOpen && (
         <>
