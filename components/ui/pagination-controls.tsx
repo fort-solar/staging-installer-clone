@@ -38,7 +38,7 @@ export default function PaginationControls({
         type="button"
         onClick={() => onPageChange(Math.max(page - 1, 1))}
         disabled={isPreviousDisabled}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[#D0D5DD] bg-white px-4 text-sm font-medium text-[#344054] transition hover:border-[#2CB22C] hover:text-[#058A05] disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:hover:border-[#D0D5DD] disabled:hover:text-[#98A2B3]"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[#D0D5DD] bg-white px-4 text-sm font-medium text-[#344054] transition hover:border-[#2CB22C] hover:text-[#048A05] disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:hover:border-[#D0D5DD] disabled:hover:text-[#98A2B3]"
       >
         <ChevronLeft className="h-4 w-4" />
         Prev
@@ -53,7 +53,7 @@ export default function PaginationControls({
         type="button"
         onClick={() => onPageChange(Math.min(page + 1, resolvedTotalPages))}
         disabled={isNextDisabled}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[#D0D5DD] bg-white px-4 text-sm font-medium text-[#344054] transition hover:border-[#2CB22C] hover:text-[#058A05] disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:hover:border-[#D0D5DD] disabled:hover:text-[#98A2B3]"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[#D0D5DD] bg-white px-4 text-sm font-medium text-[#344054] transition hover:border-[#2CB22C] hover:text-[#048A05] disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3] disabled:hover:border-[#D0D5DD] disabled:hover:text-[#98A2B3]"
       >
         Next
         <ChevronRight className="h-4 w-4" />

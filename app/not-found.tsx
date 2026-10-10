@@ -15,7 +15,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/login"
-          className="mt-8 inline-flex items-center justify-center rounded-full bg-[linear-gradient(94.62deg,#2CB22C_-8.83%,#058A05_110.95%)] px-8 py-3 font-semibold text-white transition hover:opacity-90"
+          className="mt-8 inline-flex items-center justify-center rounded-full bg-[linear-gradient(94.62deg,#2CB22C_-8.83%,#048A05_110.95%)] px-8 py-3 font-semibold text-white transition hover:opacity-90"
         >
           Return To Login
         </Link>

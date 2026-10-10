@@ -2,9 +2,19 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@media (max-width: 1023px) {
+  body:has(nav[aria-label="Installer navigation"]) {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-brand: #048A05;
+  --color-brand-dark: #036c04;
+  --color-brand-soft: #eafbea;
+  --color-brand-muted: #d4f2d4;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -53,7 +63,7 @@
       rgba(255, 255, 255, 0.85) 0%,
       rgba(255, 255, 255, 0) 50%
     ),
-    linear-gradient(94.62deg, #2cb22c -8.83%, #058a05 110.95%);
+    linear-gradient(94.62deg, #2cb22c -8.83%, #048A05 110.95%);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -165,3 +175,14 @@
 .fortsolar-auth-gradient {
   background: var(--fortsolar-auth-gradient);
 }
+
+html { font-size: clamp(14px, 0.35vw + 13px, 16px); }
+table { width: 100%; min-width: 42rem; }
+table th, table td { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dark body { color-scheme: dark; }
+.dark [class*="bg-white"], .dark [class*="bg-[#FAFAFA]"], .dark [class*="bg-[#F9FBFA]"] { background-color: var(--card) !important; }
+.dark [class*="bg-[#F8FAFC]"], .dark [class*="bg-[#F7F8FA]"], .dark [class*="bg-[#F2F4F7]"] { background-color: var(--muted) !important; }
+.dark [class*="text-[#202020]"], .dark [class*="text-[#1F2937]"], .dark [class*="text-[#111827]"], .dark [class*="text-[#0F172A]"], .dark [class*="text-gray-800"] { color: var(--foreground) !important; }
+.dark [class*="text-[#3B3B3B]"], .dark [class*="text-[#4B5563]"], .dark [class*="text-[#5B6472]"], .dark [class*="text-[#6B7280]"] { color: var(--muted-foreground) !important; }
+.dark [class*="border-[#"] { border-color: var(--border) !important; }
+@media (max-width: 767px) { .overflow-x-auto { -webkit-overflow-scrolling: touch; } }

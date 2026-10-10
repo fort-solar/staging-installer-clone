@@ -35,11 +35,12 @@ const GradientCheckbox = React.forwardRef<HTMLInputElement, GradientCheckboxProp
           className={cn(
             "flex h-5 w-5 items-center justify-center rounded-md border border-[#D0D5DD] bg-white shadow-sm transition-all duration-200",
             "peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#22A128]/35",
-            "peer-checked:border-transparent peer-checked:bg-[linear-gradient(94.62deg,#2CB22C_-8.83%,#058A05_110.95%)] peer-checked:shadow-[0_10px_24px_rgba(34,161,40,0.22)]",
+            "peer-checked:border-transparent peer-checked:bg-[linear-gradient(94.62deg,#2CB22C_-8.83%,#048A05_110.95%)] peer-checked:shadow-[0_10px_24px_rgba(34,161,40,0.22)]",
+            "peer-checked:[&_svg]:opacity-100",
             indicatorClassName,
           )}
         >
-          <Check className="h-3.5 w-3.5 text-white opacity-0 transition-opacity duration-200 peer-checked:opacity-100" />
+          <Check className="h-3.5 w-3.5 text-white opacity-0 transition-opacity duration-200" />
         </span>
       </span>
       {label ? (

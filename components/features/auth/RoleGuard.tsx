@@ -32,6 +32,11 @@ const RoleGuard = ({
       void logoutUser().finally(() => {
         router.replace("/login");
       });
+      return;
+    }
+
+    if (!session.user.emailVerified) {
+      router.replace(`/verify-email?email=${encodeURIComponent(session.user.email)}`);
     }
   }, [expectedRole, isRefreshing, router, session]);
 

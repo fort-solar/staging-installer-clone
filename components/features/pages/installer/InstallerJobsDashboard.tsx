@@ -29,6 +29,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import PaginationControls from "@/components/ui/pagination-controls";
 import { useGeneralStore } from "@/store/GeneralStore";
 import { InstallerNotificationCenter } from "@/components/features/layout/InstallerNotificationCenter";
+import { getNotifications } from "@/lib/notifications";
 import type { InstallerJobRecord, PaginationMeta } from "@/types/api.types";
 
 type JobTab = "board" | "applications" | "completed" | "saved";
@@ -172,6 +173,71 @@ const InstallerJobsDashboard = () => {
   const [jobsError, setJobsError] = useState<string | null>(null);
   const [jobActionMessage, setJobActionMessage] = useState<string | null>(null);
   const [savingJobId, setSavingJobId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    getNotifications()
+      .then((payload) => {
+        if (payload?.data) {
+          setNotifications(payload.data);
+        }
+      })
+      .catch((err) => console.error("Error loading notifications:", err));
+  }, []);
+
+  const getTabUnreadCount = (tabKey: JobTab) => {
+    if (!notifications || !notifications.length) return 0;
+    
+    return notifications.filter((notif) => {
+      if (notif.is_read) return false;
+      const link = (notif.link || "").toLowerCase();
+      const title = (notif.title || "").toLowerCase();
+      const msg = (notif.message || "").toLowerCase();
+      
+      if (tabKey === "applications") {
+        return (
+          link.includes("/apply") ||
+          link.includes("/applications") ||
+          title.includes("application") ||
+          title.includes("apply") ||
+          title.includes("offer") ||
+          title.includes("assigned") ||
+          msg.includes("application") ||
+          msg.includes("applied") ||
+          msg.includes("assigned")
+        );
+      }
+      
+      if (tabKey === "completed") {
+        return (
+          link.includes("/complete") ||
+          title.includes("complete") ||
+          title.includes("payout") ||
+          title.includes("payment") ||
+          msg.includes("complete") ||
+          msg.includes("payout") ||
+          msg.includes("paid")
+        );
+      }
+      
+      if (tabKey === "saved") {
+        return link.includes("/saved") || title.includes("save") || msg.includes("save");
+      }
+      
+      if (tabKey === "board") {
+        return (
+          link.includes("/jobs") &&
+          !link.includes("/apply") &&
+          !link.includes("/complete") &&
+          !link.includes("/saved") &&
+          (title.includes("new job") || title.includes("available") || msg.includes("new job") || msg.includes("available"))
+        );
+      }
+      
+      return false;
+    }).length;
+  };
+
   const isSidebarOpen = useGeneralStore((state) => state.isCategorySidebarOpen);
   const setCategorySidebarOpen = useGeneralStore((state) => state.setCategorySidebarOpen);
   const toggleCategorySidebar = useGeneralStore((state) => state.toggleCategorySidebar);
@@ -421,20 +487,28 @@ const InstallerJobsDashboard = () => {
           <main className="rounded-2xl border border-[#E3E7EB] bg-white p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex flex-wrap rounded-xl border border-[#ECEEF0] bg-[#7373730D] p-1">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`rounded-lg px-4 py-2 text-sm lg:text-base ${
-                      tab.key === activeTab
-                        ? "bg-white font-semibold text-[#111827]"
-                        : "text-[#6B7280]"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                {tabs.map((tab) => {
+                  const unreadCount = getTabUnreadCount(tab.key);
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm lg:text-base ${
+                        tab.key === activeTab
+                          ? "bg-white font-semibold text-[#111827]"
+                          : "text-[#6B7280]"
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      {unreadCount > 0 && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

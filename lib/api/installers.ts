@@ -423,6 +423,12 @@ export function normalizeInstallerJobRecord(record: InstallerJobApiRecord): Inst
     notes,
     distanceKm: readNumber(raw, ["distanceKm", "distance_km"], 0),
     budgetLabel: readString(raw, ["budgetLabel"], formatBudgetLabel(budget)),
+    inverter_size: readNullableString(raw, ["inverter_size"]),
+    panel_size: readNullableString(raw, ["panel_size"]),
+    number_of_panels: readNumber(raw, ["number_of_panels"], 0),
+    battery_type: readNullableString(raw, ["battery_type"]),
+    battery_energy: readNullableString(raw, ["battery_energy"]),
+    customer_address: readNullableString(raw, ["customer_address"]),
     postedAgo: readString(raw, ["postedAgo"], formatPostedAgo(createdAt)),
     jobType,
     systemSize,
@@ -640,4 +646,18 @@ export function getInstallerPayouts(params: InstallerPayoutsQuery = {}) {
       limit: params.limit ?? DEFAULT_PAGE_SIZE,
     })}`,
   );
+}
+
+export function completeInstallerJob(id: string, payload: { jobId: string }) {
+  return appRequest<ApiSuccessResponse>(`/api/v1/installers/jobs/${id}/complete`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function uploadInstallerInstallationPhoto(id: string, formData: FormData) {
+  return appRequest<ApiSuccessResponse>(`/api/v1/installers/installations/${id}/photos`, {
+    method: "POST",
+    body: formData,
+  });
 }

@@ -9,7 +9,7 @@ type PasswordInputProps = Omit<React.ComponentPropsWithoutRef<"input">, "type"> 
   error?: string;
 };
 
-const PasswordInput = ({ label, error, className, ...props }: PasswordInputProps) => {
+const PasswordInput = ({ label, error, className, required, ...props }: PasswordInputProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const inputId =
     props.id ?? props.name ?? label.replace(/\s+/g, "-").toLowerCase();
@@ -18,6 +18,7 @@ const PasswordInput = ({ label, error, className, ...props }: PasswordInputProps
     <div className="space-y-2">
       <label htmlFor={inputId} className="text-sm font-medium text-[#111827]">
         {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
       </label>
       <div className="relative">
         <AuthInput
@@ -26,6 +27,7 @@ const PasswordInput = ({ label, error, className, ...props }: PasswordInputProps
           type={isVisible ? "text" : "password"}
           className={`pr-12 ${className ?? ""}`}
           error={error}
+          required={required}
           {...props}
         />
         <button
