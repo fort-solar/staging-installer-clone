@@ -25,7 +25,14 @@ type ServerPayload =
   | null;
 
 function buildApiUrl(path: string) {
-  return new URL(path, env.apiBaseUrl).toString();
+  const base = (env.apiBaseUrl || "https://api.fortsolar.ng").replace(/\/+$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  let normalizedPath = cleanPath;
+  if (base.endsWith("/api/v1") && normalizedPath.startsWith("/api/v1")) {
+    normalizedPath = normalizedPath.slice("/api/v1".length);
+    if (!normalizedPath.startsWith("/")) normalizedPath = `/${normalizedPath}`;
+  }
+  return `${base}${normalizedPath}`;
 }
 
 export function buildErrorResponse(message: string, status = 400, error?: string) {
